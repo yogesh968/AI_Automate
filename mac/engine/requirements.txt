@@ -1,0 +1,39 @@
+# --- core ---
+websockets>=13,<16
+groq>=0.11
+httpx>=0.27
+python-dotenv>=1.0
+keyring>=25
+
+# --- voice ---
+numpy>=1.26,<3
+sounddevice>=0.4.7
+openwakeword>=0.6
+onnxruntime>=1.17
+edge-tts>=6.1
+
+# --- macOS device control ---
+psutil>=5.9
+pyobjc-core>=10.3
+pyobjc-framework-Cocoa>=10.3
+pyobjc-framework-Quartz>=10.3
+pyobjc-framework-ApplicationServices>=10.3
+pyautogui>=0.9.54
+pyperclip>=1.9
+send2trash>=1.8
+
+# --- screen / files ---
+mss>=9.0
+Pillow>=10
+pypdf>=4
+python-docx>=1.1
+
+# --- web / browser ---
+ddgs>=9.0
+beautifulsoup4>=4.12
+playwright>=1.45
+
+# --- google (gmail + calendar) ---
+google-api-python-client>=2.130
+google-auth-oauthlib>=1.2
+google-auth-httplib2>=0.2

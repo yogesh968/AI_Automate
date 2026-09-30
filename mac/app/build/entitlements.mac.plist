@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Electron (V8 JIT) and the bundled Python engine need these under the hardened runtime -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <!-- Microphone for the wake word and voice commands -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <!-- AppleScript / System Events automation of other apps -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+    <!-- Groq, ElevenLabs, web tools -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <!-- Local WebSocket between the UI and the engine -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+    <!-- Calendar / Reminders apps -->
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
+</dict>
+</plist>

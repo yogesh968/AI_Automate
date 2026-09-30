@@ -1,0 +1,116 @@
+{
+  "name": "jarvis-macos",
+  "productName": "Jarvis",
+  "version": "0.1.0",
+  "description": "JARVIS desktop assistant for macOS — floating orb UI",
+  "author": "Yogesh Kumar",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "dev:mock": "cross-env JARVIS_MOCK_ENGINE=1 npm run dev",
+    "smoke": "vite build && cross-env JARVIS_MOCK_ENGINE=1 JARVIS_SMOKE=1 electron .",
+    "build": "vite build",
+    "start": "electron .",
+    "icon": "node scripts/make-icon.js",
+    "dist": "npm run icon && vite build && electron-builder --mac",
+    "dist:arm64": "npm run icon && vite build && electron-builder --mac --arm64",
+    "dist:x64": "npm run icon && vite build && electron-builder --mac --x64",
+    "check": "node --check electron/main.js && node --check electron/preload.js && node --check electron/engine.js && node --check electron/tray.js && node --check electron/windowState.js && node --check electron/permissions.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.0.3",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.jarvis.macos",
+    "productName": "Jarvis",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../engine/dist/jarvis-engine",
+        "to": "engine",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false,
+      "minimumSystemVersion": "12.0",
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSMicrophoneUsageDescription": "Jarvis listens for \"Hey Jarvis\" and your voice commands. Audio is only sent for transcription after the wake word or when you press the talk shortcut.",
+        "NSAppleEventsUsageDescription": "Jarvis controls apps like Finder, Music, Notes, Reminders, Calendar and Messages when you ask it to.",
+        "NSScreenCaptureUsageDescription": "Jarvis looks at your screen only when you ask things like \"what's this error on my screen?\"",
+        "NSCalendarsUsageDescription": "Jarvis reads and adds calendar events when you ask.",
+        "NSRemindersUsageDescription": "Jarvis adds to-dos to Reminders when you ask."
+      }
+    },
+    "dmg": {
+      "title": "Jarvis ${version}",
+      "artifactName": "Jarvis-${version}-${arch}.${ext}",
+      "contents": [
+        {
+          "x": 150,
+          "y": 190
+        },
+        {
+          "x": 390,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yogesh968",
+        "repo": "jarvis-macos"
+      }
+    ]
+  }
+}
