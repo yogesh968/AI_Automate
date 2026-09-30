@@ -1,0 +1,78 @@
+{
+  "name": "jarvis-windows",
+  "productName": "Jarvis",
+  "version": "0.1.0",
+  "description": "JARVIS desktop assistant for Windows — floating orb UI",
+  "author": "Yogesh Kumar",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "dev:mock": "cross-env JARVIS_MOCK_ENGINE=1 npm run dev",
+    "smoke": "vite build && cross-env JARVIS_MOCK_ENGINE=1 JARVIS_SMOKE=1 electron .",
+    "build": "vite build",
+    "start": "electron .",
+    "icon": "node scripts/make-icon.js",
+    "dist": "npm run icon && vite build && electron-builder --win nsis",
+    "check": "node --check electron/main.js && node --check electron/preload.js && node --check electron/engine.js && node --check electron/tray.js && node --check electron/windowState.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.0.3",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.jarvis.windows",
+    "productName": "Jarvis",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../engine/dist/jarvis-engine",
+        "to": "engine",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Jarvis"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "yogesh968",
+        "repo": "jarvis-windows"
+      }
+    ]
+  }
+}

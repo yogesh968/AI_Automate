@@ -1,0 +1,20 @@
+# python
+engine/.venv/
+engine/build/
+engine/dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+engine/.env
+
+# node
+app/node_modules/
+app/dist/
+app/release/
+app/out/
+
+# misc
+*.log
+.DS_Store
+google_credentials.json
+google_token.json

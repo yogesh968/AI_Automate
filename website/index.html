@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S.</title>
+<meta name="description" content="Your personal AI assistant that floats on your screen, talks in Hinglish and controls your computer. Free for Windows and macOS.">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #03070d; --panel: rgba(12, 28, 44, .55); --line: rgba(80, 220, 255, .18);
+    --text: #e6f6ff; --muted: #8aa6b8; --cyan: #3ee0ff; --blue: #2b7bff; --glow: rgba(62, 224, 255, .45);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: radial-gradient(1200px 700px at 50% -10%, #0b2236 0%, var(--bg) 60%) fixed, var(--bg);
+    color: var(--text); font: 16px/1.6 Inter, "Noto Sans Devanagari", system-ui, sans-serif; overflow-x: hidden;
+  }
+  body::before { /* HUD grid */
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .35;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 56px 56px; mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px; position: relative; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .logo { font-family: Orbitron; font-weight: 900; letter-spacing: .28em; font-size: 15px; color: var(--cyan); text-decoration: none; }
+  nav .links a { color: var(--muted); text-decoration: none; margin-left: 22px; font-size: 14px; }
+  nav .links a:hover { color: var(--text); }
+
+  .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 50px 0 80px; }
+  .tag { display: inline-block; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--cyan);
+         border: 1px solid var(--line); padding: 6px 12px; border-radius: 99px; background: rgba(62,224,255,.06); }
+  h1 { font-family: Orbitron; font-size: clamp(38px, 6vw, 68px); line-height: 1.05; margin: 18px 0 18px; letter-spacing: .04em; }
+  h1 span { background: linear-gradient(90deg, var(--cyan), var(--blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); font-size: 18px; max-width: 540px; }
+  .hi { color: var(--text); }
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px; font-weight: 600;
+         text-decoration: none; border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(10px);
+         transition: transform .15s, box-shadow .2s, border-color .2s; }
+  .btn:hover { transform: translateY(-2px); border-color: var(--cyan); box-shadow: 0 0 28px var(--glow); }
+  .btn.primary { background: linear-gradient(135deg, #0fb7e0, #2b6fff); border-color: transparent; color: #021018; }
+  .btn small { display: block; font-weight: 400; font-size: 12px; opacity: .75; }
+  .btn svg { width: 22px; height: 22px; flex: none; }
+  .note { margin-top: 14px; font-size: 13px; color: var(--muted); }
+
+  .orb-wrap { position: relative; aspect-ratio: 1; max-width: 440px; width: 100%; margin: 0 auto; }
+  canvas#orb { width: 100%; height: 100%; display: block; }
+  .bubble { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); white-space: nowrap;
+            background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(12px);
+            padding: 10px 16px; border-radius: 14px; font-size: 14px; min-height: 42px; }
+  .bubble b { color: var(--cyan); font-weight: 600; }
+
+  section { padding: 70px 0; }
+  h2 { font-family: Orbitron; font-size: clamp(24px, 3.5vw, 34px); letter-spacing: .05em; margin-bottom: 10px; }
+  .sub { color: var(--muted); margin-bottom: 34px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; backdrop-filter: blur(10px); }
+  .card h3 { font-size: 16px; margin: 10px 0 6px; }
+  .card p { color: var(--muted); font-size: 14px; }
+  .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(62,224,255,.1); color: var(--cyan); font-size: 19px; }
+
+  .say { display: flex; flex-wrap: wrap; gap: 10px; }
+  .say span { border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; font-size: 14px; background: rgba(62,224,255,.05); }
+
+  .steps { counter-reset: s; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .steps .card::before { counter-increment: s; content: "0" counter(s); font-family: Orbitron; color: var(--cyan); font-size: 22px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--cyan); font-weight: 600; }
+  td:first-child { white-space: nowrap; }
+
+  footer { padding: 40px 0 60px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 30px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; padding-top: 20px; }
+    .orb-wrap { max-width: 320px; order: -1; }
+    .grid, .steps { grid-template-columns: 1fr; }
+    nav .links a:not(:last-child) { display: none; }
+    .bubble { white-space: normal; width: 90%; text-align: center; }
+    .btn { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="#">J.A.R.V.I.S.</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#safety">Safety</a>
+      <a href="#setup">Setup</a>
+      <a href="#download">Download</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <span class="tag">Personal AI · Windows &amp; macOS</span>
+      <h1>Your own <span>JARVIS.</span></h1>
+      <p class="lead">A glowing orb on your screen that <span class="hi">listens, talks in natural Hinglish</span>, and actually
+        <span class="hi">controls your computer</span>: apps, files, browser, screen, email, reminders and more.
+        Just say <b class="hi">“Hey Jarvis”</b>.</p>
+      <div class="cta" id="download">
+        <a class="btn primary" id="dl-win" href="https://github.com/yogesh968/jarvis-windows/releases/latest">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3V5.5Zm0 13 7.5 1.1v-7H3v5.9Zm8.4 1.2L21 21V12.6h-9.6v7.1Zm0-15.4v7.2H21V3l-9.6 1.3Z"/></svg>
+          <span>Download for Windows<small id="win-meta">Windows 10 / 11 · 64-bit</small></span>
+        </a>
+        <a class="btn" id="dl-mac" href="https://github.com/yogesh968/jarvis-macos/releases/latest">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8s2 .8 3.4.8c1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.6-1-2.6-4.1ZM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.5Z"/></svg>
+          <span>Download for macOS<small>Apple Silicon &amp; Intel</small></span>
+        </a>
+      </div>
+      <p class="note">Free and open source. You bring your own Groq key (free tier available) and, optionally, an ElevenLabs key for a more human voice.</p>
+    </div>
+    <div class="orb-wrap">
+      <canvas id="orb" aria-label="Animated Jarvis orb"></canvas>
+      <div class="bubble" id="bubble"></div>
+    </div>
+  </header>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Does real work</h2>
+    <p class="sub">Jarvis doesn't just chat. It has 88 tools that act on your computer.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🎙️</div><h3>Voice, Hinglish first</h3><p>Offline “Hey Jarvis” wake word, Whisper speech-to-text, and a natural ElevenLabs voice that mixes Hindi and English the way you do.</p></div>
+      <div class="card"><div class="ico">🖥️</div><h3>Full device control</h3><p>Apps, windows, volume, brightness, Wi-Fi, Bluetooth, dark mode, power, clipboard, keyboard and mouse.</p></div>
+      <div class="card"><div class="ico">👁️</div><h3>Sees your screen</h3><p>“Screen pe jo error hai woh samjhao.” It reads, explains and clicks things by description.</p></div>
+      <div class="card"><div class="ico">📁</div><h3>Files</h3><p>Search, read PDFs and Word docs, summarize, organize Downloads by type, move, copy, and delete to the Recycle Bin.</p></div>
+      <div class="card"><div class="ico">🌐</div><h3>Web &amp; browser</h3><p>Search, news, weather, read any page, and drive its own browser to click and fill forms. YouTube, Spotify and WhatsApp shortcuts.</p></div>
+      <div class="card"><div class="ico">📧</div><h3>Email &amp; calendar</h3><p>Gmail and Google Calendar: read, reply, schedule. On Mac it also works with Notes, Reminders, Calendar, Music and iMessage.</p></div>
+      <div class="card"><div class="ico">🧠</div><h3>Remembers you</h3><p>Your people, preferences and “usual setup”. It uses what it knows in every conversation.</p></div>
+      <div class="card"><div class="ico">⏰</div><h3>Reminders &amp; routines</h3><p>Timers, repeating reminders, and routines like “good morning” and “work mode”, or your own.</p></div>
+      <div class="card"><div class="ico">✨</div><h3>The orb</h3><p>A floating Three.js orb that pulses, listens, thinks and speaks. Click it for a glass chat panel. It never gets in your way.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Just say it</h2>
+    <p class="sub">Talk normally, in Hindi, English or both.</p>
+    <div class="say">
+      <span>“Hey Jarvis, Downloads folder saaf kar do”</span>
+      <span>“Chrome kholo aur YouTube pe Arijit chalao”</span>
+      <span>“Kal subah 7 baje gym ka reminder”</span>
+      <span>“Mera unread email padh ke sunao”</span>
+      <span>“Volume 30 aur dark mode on”</span>
+      <span>“Good morning”</span>
+      <span>“What's this error on my screen?”</span>
+      <span>“Work mode on karo”</span>
+      <span>“Priya ko WhatsApp karo ki main late hoon”</span>
+    </div>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="wrap">
+    <h2>Powerful, but safe</h2>
+    <p class="sub">Every action goes through a safety layer, and you stay in control.</p>
+    <table>
+      <tr><th>Level</th><th>Examples</th><th>What happens</th></tr>
+      <tr><td>🟢 Auto</td><td>Open an app, read a file, search, change volume</td><td>Runs instantly</td></tr>
+      <tr><td>🟡 Confirm</td><td>Delete, send email, run a command, shut down, “Pay” / “Send” buttons</td><td>Jarvis asks, and you answer “haan” or “nahi” by voice or click</td></tr>
+      <tr><td>🔴 Blocked</td><td>System folders, disk formatting, registry deletes, dangerous commands</td><td>Always refused</td></tr>
+    </table>
+    <p class="note" style="margin-top:18px">Plus a kill-switch hotkey, a dry-run mode, folders you choose, deletes that go to the Recycle Bin or Trash, and a full activity log. The wake word runs on your device.</p>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <h2>Up in 3 minutes</h2>
+    <p class="sub">&nbsp;</p>
+    <div class="steps">
+      <div class="card"><h3>Install</h3><p>Download for your OS and run the installer. On Windows, click “More info → Run anyway” if SmartScreen asks. On Mac, allow Microphone, Accessibility and Screen Recording when prompted.</p></div>
+      <div class="card"><h3>Add your keys</h3><p>Click the orb, open Settings, and paste a free <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key</a>. Optionally add an <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a> key and a Hindi voice.</p></div>
+      <div class="card"><h3>Say “Hey Jarvis”</h3><p>That's it. Use <b>Ctrl+Alt+J</b> (<b>⌘⌥J</b> on Mac) any time to stop everything instantly.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>J.A.R.V.I.S. · built by Yogesh Kumar</span>
+    <span><a href="https://github.com/yogesh968/jarvis-windows">Windows source</a> · <a href="https://github.com/yogesh968/jarvis-macos">macOS source</a></span>
+  </div>
+</footer>
+
+<script>
+// ---- animated orb (2D canvas, no libraries) ----
+(() => {
+  const c = document.getElementById('orb'), g = c.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, t = 0, speak = 0;
+  const dots = Array.from({ length: 140 }, () => ({ a: Math.random() * 6.283, r: .55 + Math.random() * .5, s: .1 + Math.random() * .5, z: Math.random() }));
+  function size() { const d = devicePixelRatio || 1; W = c.clientWidth; H = c.clientHeight; c.width = W * d; c.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
+  addEventListener('resize', size); size();
+  function frame() {
+    t += 0.016; const cx = W / 2, cy = H / 2, R = Math.min(W, H) * .26;
+    const amp = speak * (0.5 + 0.5 * Math.sin(t * 18) * Math.sin(t * 7.3));
+    g.clearRect(0, 0, W, H);
+    const halo = g.createRadialGradient(cx, cy, R * .2, cx, cy, R * 2.1);
+    halo.addColorStop(0, 'rgba(62,224,255,.35)'); halo.addColorStop(.45, 'rgba(43,123,255,.12)'); halo.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = halo; g.fillRect(0, 0, W, H);
+    // wobbling core
+    g.beginPath();
+    for (let i = 0; i <= 120; i++) {
+      const a = i / 120 * 6.283;
+      const r = R * (1 + .045 * Math.sin(a * 3 + t * 1.7) + .03 * Math.sin(a * 5 - t * 2.3) + amp * .12 * Math.sin(a * 8 + t * 9));
+      g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+    const core = g.createRadialGradient(cx - R * .3, cy - R * .35, R * .1, cx, cy, R * 1.1);
+    core.addColorStop(0, '#e9fdff'); core.addColorStop(.25, '#5ff0ff'); core.addColorStop(.7, '#1677ff'); core.addColorStop(1, '#061a3a');
+    g.fillStyle = core; g.shadowColor = '#3ee0ff'; g.shadowBlur = 40 + amp * 40; g.fill(); g.shadowBlur = 0;
+    // rings
+    g.lineWidth = 1.5;
+    [[1.35, .9, 1], [1.6, -.6, .6], [1.85, .35, .35]].forEach(([k, sp, al], i) => {
+      g.strokeStyle = `rgba(62,224,255,${al * .8})`; g.beginPath();
+      const start = t * sp + i, len = 1.2 + i * .6;
+      g.arc(cx, cy, R * k, start, start + len); g.stroke();
+      g.beginPath(); g.arc(cx, cy, R * k, start + Math.PI, start + Math.PI + len * .6); g.stroke();
+    });
+    // particles
+    dots.forEach(d => {
+      d.a += d.s * .01 * (1 + amp * 3);
+      const r = R * (1.2 + d.r * .9), x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r * .92;
+      g.fillStyle = `rgba(120,235,255,${.25 + d.z * .6})`; g.fillRect(x, y, 1.6, 1.6);
+    });
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  frame();
+  // ---- talking bubble demo ----
+  const lines = [
+    ['You', 'Hey Jarvis, Downloads saaf kar do'],
+    ['Jarvis', 'हो गया boss, 142 files 6 folders में sort कर दीं।'],
+    ['You', 'Aaj ka weather?'],
+    ['Jarvis', '31 degree है, शाम को हल्की बारिश हो सकती है।'],
+    ['You', 'Play some Arijit'],
+    ['Jarvis', 'चलो, YouTube पर लगा दिया 🎧'],
+  ];
+  const b = document.getElementById('bubble'); let i = 0;
+  function next() {
+    const [who, text] = lines[i++ % lines.length];
+    b.innerHTML = `<b>${who}:</b> ` + text.replace(/</g, '&lt;');
+    speak = who === 'Jarvis' ? 1 : 0;
+    setTimeout(() => { speak = 0; }, 2200);
+  }
+  next(); setInterval(next, 3200);
+})();
+
+// ---- show latest version + direct .exe link if the release exists ----
+fetch('https://api.github.com/repos/yogesh968/jarvis-windows/releases/latest')
+  .then(r => r.ok ? r.json() : null)
+  .then(rel => {
+    if (!rel) return;
+    const exe = (rel.assets || []).find(a => /\.exe$/i.test(a.name));
+    if (exe) document.getElementById('dl-win').href = exe.browser_download_url;
+    document.getElementById('win-meta').textContent = `${rel.tag_name} · Windows 10 / 11 · ${exe ? Math.round(exe.size / 1048576) + ' MB' : '64-bit'}`;
+  }).catch(() => {});
+</script>
+</body>
+</html>
