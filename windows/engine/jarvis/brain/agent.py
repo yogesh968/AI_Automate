@@ -13,12 +13,13 @@ from ..context import ctx
 from ..safety import audit
 from ..safety.guard import decide
 from ..tools.base import AUTO, BLOCKED, CONFIRM, REGISTRY
+from . import toolset
 from .prompts import system_prompt
 
 log = logging.getLogger(__name__)
 
 MAX_STEPS = 14
-MAX_TOOL_RESULT = 7000
+MAX_TOOL_RESULT = 4000
 
 
 @dataclass
@@ -58,6 +59,9 @@ async def _run_tool(name: str, args: dict[str, Any], hooks: Hooks) -> str:
     call_id = uuid.uuid4().hex[:10]
     if not tool:
         return f"ERROR: there is no tool named '{name}'."
+    # models sometimes add junk keys like {"": ""}; drop anything the tool doesn't declare
+    allowed = tool.parameters.get("properties") or {}
+    args = {k: v for k, v in args.items() if k in allowed}
     decision = decide(tool, args)
     level = decision.level
     await hooks.on_tool_start(call_id, name, args, level)
@@ -106,7 +110,7 @@ async def _run_tool(name: str, args: dict[str, Any], hooks: Hooks) -> str:
 async def run_agent(user_text: str, hooks: Hooks) -> str:
     """Run one user turn. Returns the final spoken reply text."""
     store = ctx.store
-    history = store.recent_messages(limit=16)
+    history = store.recent_messages(limit=10)
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system_prompt(ctx.settings, store.facts_for_prompt(user_text))}
     ]
@@ -116,11 +120,12 @@ async def run_agent(user_text: str, hooks: Hooks) -> str:
     messages.append({"role": "user", "content": user_text})
     store.add_message("user", user_text)
 
-    tools = [t.schema() for t in REGISTRY.values()]
+    groups = toolset.pick_groups(user_text)
+    used: set[str] = set()
     spoken: list[str] = []
 
     for step in range(MAX_STEPS):
-        text, calls = await ctx.llm.chat(messages, tools, hooks.on_text)
+        text, calls = await ctx.llm.chat(messages, toolset.schemas(groups), hooks.on_text)
         if text.strip():
             spoken.append(text.strip())
         if not calls:
@@ -135,7 +140,14 @@ async def run_agent(user_text: str, hooks: Hooks) -> str:
             ],
         })
         for i, c in enumerate(calls):
-            result = await _run_tool(c["name"], _parse_args(c["arguments"]), hooks)
+            args = _parse_args(c["arguments"])
+            if c["name"] == "load_tools":
+                new = {g for g in args.get("groups") or [] if g in toolset.GROUPS}
+                groups |= new
+                result = f"Loaded: {', '.join(sorted(new)) or 'nothing'}. Now continue the task with these tools."
+            else:
+                used.add(toolset.group_of(c["name"]))
+                result = await _run_tool(c["name"], args, hooks)
             messages.append({"role": "tool", "tool_call_id": c["id"] or f"call_{step}_{i}", "content": result})
     else:
         # ran out of steps: ask for a final wrap-up without tools
@@ -144,6 +156,7 @@ async def run_agent(user_text: str, hooks: Hooks) -> str:
             None, hooks.on_text)
         spoken.append(text.strip())
 
+    toolset.remember_used(used)
     reply = " ".join(s for s in spoken if s).strip()
     store.add_message("assistant", reply)
     return reply

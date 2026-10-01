@@ -6,12 +6,12 @@ const DEFAULTS = {
   user_name: '',
   assistant_name: 'Jarvis',
   llm_model: 'openai/gpt-oss-120b',
-  fast_model: 'llama-3.1-8b-instant',
-  vision_model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  fast_model: 'openai/gpt-oss-20b',
+  vision_model: 'qwen/qwen3.8-27b',
   stt_model: 'whisper-large-v3-turbo',
   tts_provider: 'elevenlabs',
   elevenlabs_voice_id: '',
-  elevenlabs_model: 'eleven_multilingual_v2',
+  elevenlabs_model: 'eleven_flash_v2_5',
   edge_voice: 'hi-IN-MadhurNeural',
   speak_replies: true,
   hindi_script: 'devanagari',
@@ -21,19 +21,19 @@ const DEFAULTS = {
   allowed_write_dirs: [],
   confirm_by_voice: true,
   start_with_system: true,
+  persona: 'classic',
+  address_as: 'sir',
+  follow_up: true,
+  barge_in: true,
+  startup_greeting: true,
+  proactive_alerts: true,
+  auto_memory: true,
+  sound_effects: true,
+  home_city: '',
 };
 
-const LLM_SUGGESTIONS = [
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
-  'llama-3.3-70b-versatile',
-  'moonshotai/kimi-k2-instruct',
-  'llama-3.1-8b-instant',
-];
-const VISION_SUGGESTIONS = [
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'meta-llama/llama-4-maverick-17b-128e-instruct',
-];
+const LLM_SUGGESTIONS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+const VISION_SUGGESTIONS = ['qwen/qwen3.8-27b'];
 const STT_SUGGESTIONS = ['whisper-large-v3-turbo', 'whisper-large-v3'];
 const ELEVEN_MODELS = [
   ['eleven_multilingual_v2', 'Multilingual v2 — most natural'],
@@ -46,6 +46,8 @@ const EDGE_VOICES = [
   ['hi-IN-SwaraNeural', 'Swara — Hindi, female'],
   ['en-IN-PrabhatNeural', 'Prabhat — Indian English, male'],
   ['en-IN-NeerjaNeural', 'Neerja — Indian English, female'],
+  ['en-GB-RyanNeural', 'Ryan — British English, male (movie JARVIS feel)'],
+  ['en-GB-ThomasNeural', 'Thomas — British English, male'],
 ];
 
 function Keys({ accel }) {
@@ -257,6 +259,52 @@ export default function SettingsTab({ settings, keys, send, toast, micMuted, onT
         />
       </Section>
 
+      <Section title="Personality">
+        <Select
+          label="Persona"
+          value={s.persona}
+          options={[
+            ['classic', 'Classic JARVIS — composed, witty, calls you “sir”'],
+            ['desi', 'Desi friend — casual Hinglish'],
+          ]}
+          onChange={(v) => update({ persona: v })}
+        />
+        {s.persona === 'classic' && (
+          <TextField
+            label="Address me as"
+            hint="e.g. sir, boss, Mr. Kumar — or leave empty to use your name."
+            value={s.address_as}
+            placeholder="sir"
+            onCommit={(v) => update({ address_as: v })}
+          />
+        )}
+        <Toggle
+          label="Greet me when Jarvis starts"
+          hint="“Good evening, sir. All systems are online.”"
+          checked={s.startup_greeting}
+          onChange={(v) => update({ startup_greeting: v })}
+        />
+        <Toggle
+          label="Proactive alerts"
+          hint="Speaks up on low battery, CPU overload, memory pressure and internet drops."
+          checked={s.proactive_alerts}
+          onChange={(v) => update({ proactive_alerts: v })}
+        />
+        <Toggle
+          label="Learn about me automatically"
+          hint="Quietly remembers lasting facts you mention (names, preferences, projects)."
+          checked={s.auto_memory}
+          onChange={(v) => update({ auto_memory: v })}
+        />
+        <TextField
+          label="Home city (HUD weather)"
+          hint="Leave empty to detect from your internet connection."
+          value={s.home_city}
+          placeholder="e.g. Delhi"
+          onCommit={(v) => update({ home_city: v })}
+        />
+      </Section>
+
       <Section title="Voice">
         <Toggle label="Speak replies out loud" checked={s.speak_replies} onChange={(v) => update({ speak_replies: v })} />
         <Select
@@ -330,6 +378,24 @@ export default function SettingsTab({ settings, keys, send, toast, micMuted, onT
           />
           <p className="hint">Lower = wakes more easily (more false triggers). Higher = stricter.</p>
         </div>
+        <Toggle
+          label="Continuous conversation"
+          hint="After Jarvis answers, it keeps listening for a few seconds — just keep talking, no “Hey Jarvis” needed."
+          checked={s.follow_up}
+          onChange={(v) => update({ follow_up: v })}
+        />
+        <Toggle
+          label="Interrupt with “Hey Jarvis”"
+          hint="Say the wake word while Jarvis is talking to cut it off. Turn off if its own voice triggers it."
+          checked={s.barge_in}
+          onChange={(v) => update({ barge_in: v })}
+        />
+        <Toggle
+          label="HUD sound effects"
+          hint="Soft chimes when Jarvis starts and stops listening."
+          checked={s.sound_effects}
+          onChange={(v) => update({ sound_effects: v })}
+        />
       </Section>
 
       <Section title="Brain (Groq models)">
@@ -409,6 +475,7 @@ export default function SettingsTab({ settings, keys, send, toast, micMuted, onT
             ['stop', 'Stop everything'],
             ['panel', 'Show/hide panel'],
             ['hide', 'Hide/show orb'],
+            ['hud', 'HUD mode (full screen)'],
           ].map(([action, label]) => (
             <div key={action}>
               <Keys accel={shortcuts[action]} /> {label}

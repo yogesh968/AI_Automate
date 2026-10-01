@@ -36,6 +36,7 @@ if (!app.requestSingleInstanceLock()) {
 let win = null;
 let trayCtl = null;
 let panelOpen = false;
+let hudOpen = false;
 let orbVisible = true;
 let micMuted = false;
 let quitting = false;
@@ -61,7 +62,7 @@ function setStartWithSystem(enabled) {
 
 function refreshTray() {
   if (trayCtl) {
-    trayCtl.rebuild({ orbVisible, micMuted, startWithSystem: startWithSystem() });
+    trayCtl.rebuild({ orbVisible, micMuted, hudOpen, startWithSystem: startWithSystem() });
   }
 }
 
@@ -90,7 +91,13 @@ function boundsFor(open) {
 function applyBounds() {
   if (!win) return;
   win.setResizable(true);
-  win.setBounds(boundsFor(panelOpen));
+  if (hudOpen) {
+    // the HUD covers the whole display the orb lives on
+    const display = screen.getDisplayNearestPoint({ x: Math.round(anchor.x) - 1, y: Math.round(anchor.y) - 1 });
+    win.setBounds(display.bounds);
+  } else {
+    win.setBounds(boundsFor(panelOpen));
+  }
   win.setResizable(false);
 }
 
@@ -140,7 +147,7 @@ function createWindow() {
   // Show without stealing focus from whatever the user is doing.
   win.once('ready-to-show', () => win.showInactive());
 
-  // Links from the chat open in the real browser, never inside the orb window.
+  // Links open in the real browser, never inside the orb window.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
@@ -158,8 +165,38 @@ function createWindow() {
   });
 }
 
+function setHud(open) {
+  if (!win) return;
+  hudOpen = !!open;
+  if (hudOpen) {
+    panelOpen = false;
+    if (!orbVisible) setOrbVisible(true);
+  }
+  applyBounds();
+  win.setFocusable(hudOpen || panelOpen);
+  // The big screen is a normal window (on the taskbar, not pinned on top) so apps Jarvis opens
+  // come up in front of it. The small orb floats above everything.
+  win.setAlwaysOnTop(!hudOpen, 'screen-saver');
+  win.setSkipTaskbar(!hudOpen);
+  if (hudOpen) {
+    win.setIgnoreMouseEvents(false);
+    win.show();
+    win.focus();
+  } else {
+    win.setIgnoreMouseEvents(true, { forward: true });
+  }
+  refreshTray();
+}
+
+// Hotkey / tray: open the big screen, bring it forward if it's behind other windows, else minimize to the orb.
+function toggleHud() {
+  if (hudOpen && win && !(win.isFocused() && win.isVisible())) setHud(true);
+  else send('shortcut', 'hud');
+}
+
 function setPanel(open, tab) {
   if (!win) return;
+  if (hudOpen && open) send('shortcut', 'hud-off');
   panelOpen = !!open;
   if (!orbVisible && panelOpen) setOrbVisible(true);
   applyBounds();
@@ -193,8 +230,9 @@ function setMicMuted(muted) {
 const SHORTCUTS = {
   talk: { keys: ['Control+Alt+Space', 'Control+Shift+Space', 'Control+Alt+K'], fn: () => send('shortcut', 'talk') },
   stop: { keys: ['Control+Alt+J', 'Control+Shift+J'], fn: () => send('shortcut', 'stop') },
-  panel: { keys: ['Control+Alt+P', 'Control+Shift+P'], fn: () => setPanel(!panelOpen) },
+  panel: { keys: ['Control+Alt+P', 'Control+Shift+P'], fn: () => setPanel(!panelOpen, 'settings') },
   hide: { keys: ['Control+Alt+H', 'Control+Shift+H'], fn: () => setOrbVisible(!orbVisible) },
+  hud: { keys: ['Control+Alt+U', 'Control+Shift+U'], fn: () => toggleHud() },
 };
 const activeShortcuts = {};
 
@@ -230,7 +268,7 @@ function attachUiLog() {
   });
 }
 
-// Dev-only: JARVIS_SMOKE=1 saves screenshots of the orb and the panel, then quits.
+// Dev-only: JARVIS_SMOKE=1 saves screenshots of the big screen, a mock voice command and settings, then quits.
 function smokeTest() {
   const fs = require('fs');
   const dir = path.join(app.getPath('userData'), 'smoke');
@@ -240,22 +278,22 @@ function smokeTest() {
     fs.writeFileSync(path.join(dir, `${name}.png`), img.toPNG());
   };
   setTimeout(async () => {
-    await shot('orb');
-    setPanel(true, 'settings');
+    await shot('hud');
+    // With the mock engine this runs listen → transcript → tool → confirm request.
+    send('shortcut', 'talk');
     setTimeout(async () => {
-      await shot('panel-settings');
-      send('panel', { open: true, tab: 'chat' });
+      await shot('hud-confirm');
+      send('shortcut', 'hud');
       setTimeout(async () => {
-        await shot('panel-chat');
-        // With the mock engine this runs listen → transcript → tool → confirm card.
-        send('shortcut', 'talk');
+        await shot('orb');
+        setPanel(true, 'settings');
         setTimeout(async () => {
-          await shot('panel-confirm');
+          await shot('settings');
           quit();
-        }, 4000);
+        }, 1500);
       }, 1500);
-    }, 1500);
-  }, 4000);
+    }, 4000);
+  }, 5000);
 }
 
 function setupUpdater() {
@@ -287,14 +325,18 @@ function registerIpc() {
     setPanel(open, tab);
     return panelOpen;
   });
+  ipcMain.handle('win:hud', (_e, open) => {
+    setHud(open);
+    return hudOpen;
+  });
   ipcMain.on('win:ignore-mouse', (_e, ignore) => {
-    if (!win) return;
+    if (!win || hudOpen) return;
     if (ignore) win.setIgnoreMouseEvents(true, { forward: true });
     else win.setIgnoreMouseEvents(false);
   });
 
   ipcMain.on('win:drag-start', () => {
-    if (!win) return;
+    if (!win || hudOpen) return;
     const cursor = screen.getCursorScreenPoint();
     const [x, y] = win.getPosition();
     drag = { cursor, x, y };
@@ -352,7 +394,7 @@ async function quit() {
 
 app.on('second-instance', () => {
   setOrbVisible(true);
-  setPanel(true);
+  send('shortcut', 'hud-on');
 });
 
 app.whenReady().then(async () => {
@@ -363,6 +405,8 @@ app.whenReady().then(async () => {
   trayCtl = createTray({
     toggleOrb: (forceShow) => setOrbVisible(forceShow ? true : !orbVisible),
     openPanel: (tab) => setPanel(true, tab),
+    toggleHud,
+    showHud: () => send('shortcut', 'hud-on'),
     setMicMuted,
     setStartWithSystem,
     restartEngine: () => engine.restart(),

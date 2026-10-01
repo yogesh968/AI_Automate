@@ -89,7 +89,7 @@ class TTS:
         voice = self.settings["elevenlabs_voice_id"] or DEFAULT_ELEVENLABS_VOICE
         body = {
             "text": text,
-            "model_id": self.settings["elevenlabs_model"] or "eleven_multilingual_v2",
+            "model_id": self.settings["elevenlabs_model"] or "eleven_flash_v2_5",
             "voice_settings": {"stability": 0.42, "similarity_boost": 0.8, "style": 0.3, "use_speaker_boost": True},
         }
         if previous_text:

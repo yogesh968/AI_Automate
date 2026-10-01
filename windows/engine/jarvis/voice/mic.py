@@ -65,8 +65,9 @@ class Mic:
 class Recorder:
     """Collects frames for one utterance and decides when the user stopped talking."""
 
-    def __init__(self, noise_floor: float, push_to_talk: bool = False) -> None:
+    def __init__(self, noise_floor: float, push_to_talk: bool = False, start_timeout: float = 6.0) -> None:
         self.frames: list[np.ndarray] = []
+        self.start_timeout = start_timeout
         self.threshold = max(noise_floor * 3.0, 0.012)
         self.ptt = push_to_talk
         self.started = False
@@ -91,9 +92,9 @@ class Recorder:
             if self.started:
                 self.silence += 1
         seconds = self.total * FRAME_SEC
-        if not self.started and seconds > 6:
+        if not self.started and seconds > self.start_timeout:
             return "nothing"
-        if self.started and self.silence * FRAME_SEC >= 0.9:
+        if self.started and self.silence * FRAME_SEC >= 0.7:
             return "done"
         if seconds > 25:
             return "done"

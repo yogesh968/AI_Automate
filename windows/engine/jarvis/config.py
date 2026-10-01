@@ -13,12 +13,12 @@ DEFAULTS: dict[str, Any] = {
     "user_name": "",
     "assistant_name": "Jarvis",
     "llm_model": "openai/gpt-oss-120b",
-    "fast_model": "llama-3.1-8b-instant",
-    "vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "fast_model": "openai/gpt-oss-20b",
+    "vision_model": "qwen/qwen3.8-27b",
     "stt_model": "whisper-large-v3-turbo",
     "tts_provider": "elevenlabs",
     "elevenlabs_voice_id": "",
-    "elevenlabs_model": "eleven_multilingual_v2",
+    "elevenlabs_model": "eleven_flash_v2_5",
     "edge_voice": "hi-IN-MadhurNeural",
     "speak_replies": True,
     "hindi_script": "devanagari",
@@ -28,6 +28,26 @@ DEFAULTS: dict[str, Any] = {
     "allowed_write_dirs": [],
     "confirm_by_voice": True,
     "start_with_system": True,
+    # --- "real JARVIS" behaviour ---
+    "persona": "classic",          # classic (movie JARVIS, calls you "sir") | desi (casual Indian friend)
+    "address_as": "sir",           # how the classic persona addresses the user
+    "follow_up": True,             # keep listening briefly after a spoken reply (no wake word needed)
+    "barge_in": True,              # "Hey Jarvis" while Jarvis is talking interrupts it
+    "startup_greeting": True,      # "Good evening, sir. All systems online." when the app starts
+    "proactive_alerts": True,      # speak up about low battery, CPU overload, internet down…
+    "auto_memory": True,           # quietly learn lasting facts about the user from conversations
+    "sound_effects": True,         # HUD chimes when listening starts/ends
+    "home_city": "",               # weather on the HUD; empty = detect from IP
+    "settings_rev": 2,             # bumped when a default changes and old stored values should follow
+}
+
+# Models Groq has retired; stored settings using them get the new defaults.
+RETIRED = {
+    "fast_model": {"llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"},
+    "vision_model": {"meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct",
+                     "llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"},
+    "llm_model": {"llama-3.3-70b-versatile", "llama3-70b-8192", "moonshotai/kimi-k2-instruct",
+                  "moonshotai/kimi-k2-instruct-0905", "qwen/qwen3-32b", "deepseek-r1-distill-llama-70b"},
 }
 
 # Premade ElevenLabs voice used until the user picks one (ideally an Indian voice
@@ -48,9 +68,22 @@ class Settings:
             return
         try:
             stored = json.loads(self._path.read_text(encoding="utf-8"))
+            migrated = False
             for key, value in stored.items():
-                if key in DEFAULTS:
-                    self._data[key] = value
+                if key not in DEFAULTS:
+                    continue
+                if value in RETIRED.get(key, ()):
+                    migrated = True
+                    continue
+                self._data[key] = value
+            if int(stored.get("settings_rev") or 0) < 2:
+                # v0.2.1: the flash voice model answers ~10x faster than multilingual_v2
+                if self._data["elevenlabs_model"] == "eleven_multilingual_v2":
+                    self._data["elevenlabs_model"] = DEFAULTS["elevenlabs_model"]
+                self._data["settings_rev"] = DEFAULTS["settings_rev"]
+                migrated = True
+            if migrated:
+                self._save()
         except Exception:
             log.exception("settings.json is broken, using defaults")
 

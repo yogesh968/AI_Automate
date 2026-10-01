@@ -1,7 +1,5 @@
 import React from 'react';
 import { bridge } from '../bridge.js';
-import ChatTab from './ChatTab.jsx';
-import ActivityTab from './ActivityTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
 
 const STATUS_TEXT = {
@@ -14,17 +12,16 @@ const STATUS_TEXT = {
   offline: 'Offline',
 };
 
+// Settings only — Jarvis is driven by voice; there is no chat window.
 export default function Panel(props) {
-  const { tab, setTab, onClose, engine, conn, restartEngine, orbState, hello } = props;
+  const { onClose, engine, conn, restartEngine, orbState, hello } = props;
 
   let body;
   if (engine.status === 'error') {
     body = <EngineProblem engine={engine} onRetry={restartEngine} />;
   } else if (engine.status !== 'ready' || conn !== 'open') {
     body = <Booting engine={engine} conn={conn} />;
-  } else if (tab === 'activity') {
-    body = <ActivityTab audit={props.audit} send={props.send} />;
-  } else if (tab === 'settings') {
+  } else {
     body = (
       <SettingsTab
         settings={props.settings}
@@ -34,24 +31,6 @@ export default function Panel(props) {
         micMuted={props.micMuted}
         onToggleMic={props.onToggleMic}
         restartEngine={restartEngine}
-      />
-    );
-  } else {
-    body = (
-      <ChatTab
-        items={props.items}
-        transcript={props.transcript}
-        orbState={orbState}
-        keys={props.keys}
-        settings={props.settings}
-        micMuted={props.micMuted}
-        onToggleMic={props.onToggleMic}
-        onSendText={props.onSendText}
-        onListen={props.onListen}
-        onStop={props.onStop}
-        onConfirm={props.onConfirm}
-        onClearChat={props.onClearChat}
-        goSettings={() => setTab('settings')}
       />
     );
   }
@@ -72,18 +51,6 @@ export default function Panel(props) {
           </button>
         </div>
       </header>
-
-      <nav className="tabs">
-        {[
-          ['chat', 'Chat'],
-          ['activity', 'Activity'],
-          ['settings', 'Settings'],
-        ].map(([id, label]) => (
-          <button key={id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
-      </nav>
 
       <div className="panel-body">{body}</div>
     </section>

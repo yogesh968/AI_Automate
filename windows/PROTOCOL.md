@@ -2,7 +2,7 @@
 
 The desktop app has two processes:
 
-- **app/** — Electron + React + Three.js. Shows the floating orb and the glass panel, plays audio, owns global shortcuts and the tray.
+- **app/** — Electron + React + Three.js. Shows the full-screen JARVIS display, the mini orb and the settings panel, plays audio, owns global shortcuts and the tray.
 - **engine/** — Python. Brain (Groq LLM), voice (wake word, mic, STT, TTS), memory, safety and all device tools.
 
 Electron spawns the engine and they talk over a local WebSocket.
@@ -48,7 +48,11 @@ Every message is one JSON object with a `type` field.
 | `confirm_resolved` | `id`, `approved` bool | approval answered (maybe by voice) — UI removes the card |
 | `audio` | `id`, `seq` int, `format` (`mp3`), `data` base64, `text` | one spoken sentence; UI queues and plays in order |
 | `audio_end` | `id` | no more audio for this reply |
-| `notify` | `title`, `body`, `kind` (`info`/`reminder`/`warning`/`error`) | toast in panel + system notification |
+| `notify` | `title`, `body`, `kind` (`info`/`reminder`/`warning`/`error`/`memory`) | toast in panel + system notification (`memory` = a fact learned automatically; in-app toast only) |
+| `interrupt` | — | barge-in: the user said the wake word while Jarvis was talking. UI stops all audio at once |
+| `hud` | `open` bool | open/close the full-screen HUD (the `show_hud` / `hide_hud` tools) |
+| `system_stats` | `stats` {`cpu`, `cpu_ghz`, `cores`, `ram`, `ram_used_gb`, `ram_total_gb`, `disk`, `disk_free_gb`, `battery` {`percent`, `plugged`, `minutes_left`}\|null, `net_up_kbps`, `net_down_kbps`, `online`, `uptime_s`, `processes`, `top` [{`name`, `cpu`, `mem_mb`}]} | live telemetry, every ~1.5 s while the HUD is open |
+| `hud_info` | `weather` {`place`, `now`, `forecast`}\|null, `reminders` [{`text`, `due`, `repeat`}], `memories` int, `tools` int | HUD side data, on open and every 60 s |
 | `settings` | `settings` {…} | current settings after a change |
 | `keys` | `groq` bool, `elevenlabs` bool | which API keys are saved |
 | `audit` | `entries` [{`ts`, `tool`, `args`, `level`, `result`, `ok`}] | answer to `get_audit` |
@@ -71,6 +75,7 @@ Every message is one JSON object with a `type` field.
 | `get_audit` | `limit` | request audit log |
 | `get_history` | `limit` | request chat history |
 | `clear_history` | — | forget the conversation (not long-term memory) |
+| `hud_state` | `open` bool | the HUD opened/closed; the engine streams `system_stats` only while it's open |
 
 ## Settings (stored in `<JARVIS_DATA_DIR>/settings.json`)
 
@@ -79,12 +84,12 @@ Every message is one JSON object with a `type` field.
   "user_name": "",
   "assistant_name": "Jarvis",
   "llm_model": "openai/gpt-oss-120b",
-  "fast_model": "llama-3.1-8b-instant",
-  "vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
+  "fast_model": "openai/gpt-oss-20b",
+  "vision_model": "qwen/qwen3.8-27b",
   "stt_model": "whisper-large-v3-turbo",
   "tts_provider": "elevenlabs",
   "elevenlabs_voice_id": "",
-  "elevenlabs_model": "eleven_multilingual_v2",
+  "elevenlabs_model": "eleven_flash_v2_5",
   "edge_voice": "hi-IN-MadhurNeural",
   "speak_replies": true,
   "hindi_script": "devanagari",
@@ -93,9 +98,27 @@ Every message is one JSON object with a `type` field.
   "dry_run": false,
   "allowed_write_dirs": [],
   "confirm_by_voice": true,
-  "start_with_system": true
+  "start_with_system": true,
+  "persona": "classic",
+  "address_as": "sir",
+  "follow_up": true,
+  "barge_in": true,
+  "startup_greeting": true,
+  "proactive_alerts": true,
+  "auto_memory": true,
+  "sound_effects": true,
+  "home_city": "",
+  "settings_rev": 2
 }
 ```
+
+`persona`: `classic` (movie JARVIS — composed, dry wit, calls the user `address_as`) or `desi` (casual Hinglish friend).
+
+`follow_up`: after a spoken reply to a *voice* command, the engine listens again for ~5 s without the wake word (purpose `followup`). Typed messages never start a follow-up.
+
+`barge_in`: while audio plays, the wake word still runs with a stricter threshold (`wake_word_threshold + 0.25`); a hit cancels the turn, sends `interrupt` and starts listening.
+
+`proactive_alerts`: battery 20/10/5 % (once each while discharging), battery full on charger, CPU ≥ 92 % for 90 s, RAM ≥ 93 % for 30 s, system drive ≥ 95 % (every 6 h at most), internet lost (2 failed checks) / back. Alerts are spoken only when Jarvis is idle; otherwise just a toast.
 
 `hindi_script`: `devanagari` (Hindi words written in Devanagari — best pronunciation) or `roman` (Hinglish in English letters).
 
@@ -112,5 +135,6 @@ Env vars `GROQ_API_KEY` / `ELEVENLABS_API_KEY` (or `engine/.env`) override the k
 |---|---|---|
 | `Ctrl+Alt+Space` | `Cmd+Option+Space` | talk now |
 | `Ctrl+Alt+J` | `Cmd+Option+J` | **kill switch** (sends `stop`) |
-| `Ctrl+Alt+P` | `Cmd+Option+P` | show/hide panel |
+| `Ctrl+Alt+P` | `Cmd+Option+P` | show/hide settings (Windows) / panel (macOS) |
 | `Ctrl+Alt+H` | `Cmd+Option+H` | hide/show the orb |
+| `Ctrl+Alt+U` | — | JARVIS screen (full screen) on/off — Windows only for now |

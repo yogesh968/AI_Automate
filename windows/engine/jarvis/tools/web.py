@@ -64,8 +64,21 @@ def _locate(city: str) -> tuple[float, float, str]:
         if r.get("results"):
             g = r["results"][0]
             return g["latitude"], g["longitude"], f"{g['name']}, {g.get('country', '')}"
-    r = httpx.get("https://ipapi.co/json/", headers=UA, timeout=15).json()
-    return r["latitude"], r["longitude"], f"{r.get('city')}, {r.get('country_name')}"
+    # IP geolocation. Free services come and go (ipapi.co now sits behind a bot check), so try several.
+    errors = []
+    for url, lat, lon, city, country in (
+        ("https://ipwho.is/", "latitude", "longitude", "city", "country"),
+        ("http://ip-api.com/json/", "lat", "lon", "city", "country"),
+        ("https://ipapi.co/json/", "latitude", "longitude", "city", "country_name"),
+    ):
+        try:
+            r = httpx.get(url, headers=UA, timeout=10).json()
+            if r.get(lat) is not None and r.get(lon) is not None:
+                return float(r[lat]), float(r[lon]), f"{r.get(city)}, {r.get(country)}"
+            errors.append(f"{url}: no location")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{url}: {type(exc).__name__}")
+    raise RuntimeError("couldn't detect your location (" + "; ".join(errors) + ") — tell me the city")
 
 
 @tool("weather", "Current weather and 3-day forecast for a city (or the user's location if empty).",

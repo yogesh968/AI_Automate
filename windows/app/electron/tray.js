@@ -15,7 +15,7 @@ function createTray(actions) {
         label: state.orbVisible ? 'Hide orb' : 'Show orb',
         click: () => actions.toggleOrb(),
       },
-      { label: 'Open panel', click: () => actions.openPanel('chat') },
+      { label: state.hudOpen ? 'Minimize to orb' : 'Show Jarvis', click: () => actions.toggleHud() },
       { label: 'Settings', click: () => actions.openPanel('settings') },
       { type: 'separator' },
       {
@@ -39,8 +39,7 @@ function createTray(actions) {
     tray.setContextMenu(menu);
   };
 
-  tray.on('click', () => actions.toggleOrb(true));
-  tray.on('double-click', () => actions.openPanel('chat'));
+  tray.on('click', () => actions.showHud());
 
   return { tray, rebuild };
 }

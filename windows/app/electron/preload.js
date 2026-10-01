@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('jarvis', {
   // Window
   setPanel: (open, tab) => ipcRenderer.invoke('win:panel', open, tab),
   onPanel: (cb) => subscribe('panel', cb),
+  setHud: (open) => ipcRenderer.invoke('win:hud', !!open),
   setIgnoreMouse: (ignore) => ipcRenderer.send('win:ignore-mouse', !!ignore),
   dragStart: () => ipcRenderer.send('win:drag-start'),
   dragMove: () => ipcRenderer.send('win:drag-move'),

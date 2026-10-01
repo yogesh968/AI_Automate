@@ -4,7 +4,7 @@ A voice assistant that lives as a glowing orb on your screen, talks in natural H
 
 ```
 windows/
-├── app/        Electron + React + Three.js — the floating orb, glass panel, tray, hotkeys, audio playback
+├── app/        Electron + React + Three.js — the full-screen JARVIS display, mini orb, settings, tray, hotkeys, audio
 ├── engine/     Python — brain (Groq), voice (wake word, STT, TTS), memory, safety, 88 device tools
 ├── PROTOCOL.md how app and engine talk (WebSocket)
 ├── setup.ps1   one-time developer setup
@@ -30,23 +30,40 @@ Then click the orb → **Settings** → paste your keys:
 Keys are stored in **Windows Credential Manager**, never in files. For development you can instead put them in `engine\.env` (see `.env.example`).
 
 ### Pick a voice (important for "not sounding like AI")
-In ElevenLabs → **Voice Library**, filter *Language: Hindi*, pick a voice you like (young, conversational), click **Add**, copy its **Voice ID** into Settings → *ElevenLabs voice ID*. Model `eleven_multilingual_v2` gives the best Hinglish; `eleven_flash_v2_5` is faster and cheaper.
+In ElevenLabs → **Voice Library**, filter *Language: Hindi*, pick a voice you like (young, conversational), click **Add**, copy its **Voice ID** into Settings → *ElevenLabs voice ID*. The default model `eleven_flash_v2_5` starts speaking fastest; `eleven_multilingual_v2` sounds a little richer but is much slower.
+
+## What makes it feel like the real JARVIS
+
+| Feature | What it does |
+|---|---|
+| **Classic persona** | Composed, dry-witted, calls you *sir* (Settings → Personality → *Address me as*). Switch to *Desi friend* for casual Hinglish. |
+| **Boot greeting** | "Good evening, sir. It's 7:05 PM. All systems are online." — works even before any API key is set. |
+| **Continuous conversation** | After answering a voice command it keeps listening ~5 s, so you can just keep talking. |
+| **Interrupt** | Say "Hey Jarvis" while it's talking to cut it off and give a new command. |
+| **Voice-only JARVIS screen** | Jarvis opens as one big full-screen arc-reactor display (live CPU/RAM/disk/battery gauges, network, top processes, weather, reminders). There is no chat window — just talk. Approvals show as a big YES/NO prompt and can be answered by voice. `Esc` / *Minimize* shrinks it to the small orb; click the orb, `Ctrl+Alt+U` or say "HUD dikhao" to bring it back. Apps Jarvis opens appear in front of it. |
+| **Fast replies** | Each request only carries the ~20 everyday tools plus the groups your words point at (the model can load more itself), and when Groq throttles one model Jarvis instantly switches to the next (`gpt-oss-120b` → `gpt-oss-20b` → `qwen3.8-27b`) instead of waiting. |
+| **Proactive alerts** | Speaks up on its own: low battery, battery full, CPU overload, memory pressure, disk almost full, internet down/back. |
+| **Learns about you** | Quietly remembers lasting facts you mention ("my sister Priya…") — shows a small *Noted* toast. Manage them by asking "what do you remember about me?" / "forget #12". |
+| **HUD sound effects** | Soft chimes when it starts/stops listening. |
+
+For the most movie-like voice: ElevenLabs default voice (*George*, British) or the free **Ryan — British English** voice.
 
 ## Using Jarvis
 
 | Do this | What happens |
 |---|---|
 | Say **"Hey Jarvis"** | orb wakes and listens, then you speak normally |
-| Click the orb | open/close the panel |
+| Click the orb | open the full JARVIS screen |
 | Hold the orb / right-click | push-to-talk |
 | `Ctrl+Alt+Space` | talk now (falls back to `Ctrl+Shift+Space` / `Ctrl+Alt+K` if taken — Settings shows the active one) |
 | `Ctrl+Alt+J` | **kill switch** — stops everything instantly |
-| `Ctrl+Alt+P` | show/hide panel |
+| `Ctrl+Alt+P` | show/hide Settings |
 | `Ctrl+Alt+H` | hide/show the orb |
+| `Ctrl+Alt+U` | show the JARVIS screen / minimize it to the orb |
 
 Examples: *"Hey Jarvis, Downloads folder saaf kar do"*, *"Chrome kholo aur YouTube pe Arijit Singh chalao"*, *"screen pe jo error hai woh samjhao"*, *"kal subah 7 baje yaad dilana gym jaana hai"*, *"good morning"*, *"volume 30 kar do aur dark mode on"*, *"mera unread email padh ke sunao"*.
 
-## What it can do (88 tools)
+## What it can do (90 tools)
 
 - **System** — volume, mute, brightness, media keys, lock/sleep/shutdown/restart, Wi-Fi & Bluetooth on/off, dark/light mode, wallpaper, Settings pages, battery, system info, top processes, kill process, clipboard, empty Recycle Bin
 - **Apps & windows** — open any installed app (Start Menu + Store apps, fuzzy names), close politely or force, list/focus/minimize/maximize/snap windows, virtual desktops, **click buttons inside apps by name** (UI Automation)
@@ -118,5 +135,7 @@ Bump `version` in `app/package.json` for each release. Users get the update on n
 | Triggers randomly | raise the threshold (0.6–0.7) |
 | Voice sounds robotic | add ElevenLabs key + Hindi voice ID; keep *Hindi writing style* = Devanagari |
 | Groq 429 errors | free-tier rate limit — Jarvis falls back to the fast model automatically; wait a minute |
+| Jarvis interrupts itself while talking | Settings → Listening → turn off *Interrupt with “Hey Jarvis”* (or use headphones) |
+| It keeps listening after answering | that's *Continuous conversation* — just stay quiet for 5 s, or turn it off in Settings → Listening |
 | Brightness doesn't change | external monitors need DDC/CI enabled in the monitor menu |
 | Browser tools fail | install Microsoft Edge or run `engine\.venv\Scripts\python -m playwright install chromium` |
