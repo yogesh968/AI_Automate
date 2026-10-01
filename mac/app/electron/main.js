@@ -36,6 +36,7 @@ if (!app.requestSingleInstanceLock()) {
 let win = null;
 let trayCtl = null;
 let panelOpen = false;
+let hudOpen = false;
 let orbVisible = true;
 let micMuted = false;
 let quitting = false;
@@ -61,7 +62,7 @@ function setStartWithSystem(enabled) {
 
 function refreshTray() {
   if (trayCtl) {
-    trayCtl.rebuild({ orbVisible, micMuted, startWithSystem: startWithSystem() });
+    trayCtl.rebuild({ orbVisible, micMuted, hudOpen, startWithSystem: startWithSystem() });
   }
 }
 
@@ -90,7 +91,13 @@ function boundsFor(open) {
 function applyBounds() {
   if (!win) return;
   win.setResizable(true);
-  win.setBounds(boundsFor(panelOpen));
+  if (hudOpen) {
+    // the HUD covers the whole display the orb lives on
+    const display = screen.getDisplayNearestPoint({ x: Math.round(anchor.x) - 1, y: Math.round(anchor.y) - 1 });
+    win.setBounds(display.bounds);
+  } else {
+    win.setBounds(boundsFor(panelOpen));
+  }
   win.setResizable(false);
 }
 
@@ -159,8 +166,28 @@ function createWindow() {
   });
 }
 
+function setHud(open) {
+  if (!win) return;
+  hudOpen = !!open;
+  if (hudOpen) {
+    panelOpen = false;
+    if (!orbVisible) setOrbVisible(true);
+  }
+  applyBounds();
+  win.setFocusable(hudOpen || panelOpen);
+  if (hudOpen) {
+    win.setIgnoreMouseEvents(false);
+    win.show();
+    win.focus();
+  } else {
+    win.setIgnoreMouseEvents(true, { forward: true });
+  }
+  refreshTray();
+}
+
 function setPanel(open, tab) {
   if (!win) return;
+  if (hudOpen && open) send('shortcut', 'hud-off');
   panelOpen = !!open;
   if (!orbVisible && panelOpen) setOrbVisible(true);
   applyBounds();
@@ -200,6 +227,7 @@ const SHORTCUTS = {
   stop: { keys: ['Command+Option+J', 'Control+Option+J'], fn: () => send('shortcut', 'stop') },
   panel: { keys: ['Command+Option+P', 'Control+Option+P'], fn: () => setPanel(!panelOpen) },
   hide: { keys: ['Command+Option+H', 'Control+Option+H'], fn: () => setOrbVisible(!orbVisible) },
+  hud: { keys: ['Command+Option+U', 'Control+Option+U'], fn: () => send('shortcut', 'hud') },
 };
 const activeShortcuts = {};
 
@@ -256,7 +284,11 @@ function smokeTest() {
         send('shortcut', 'talk');
         setTimeout(async () => {
           await shot('panel-confirm');
-          quit();
+          send('shortcut', 'hud');
+          setTimeout(async () => {
+            await shot('hud');
+            quit();
+          }, 4500);
         }, 4000);
       }, 1500);
     }, 1500);
@@ -292,14 +324,18 @@ function registerIpc() {
     setPanel(open, tab);
     return panelOpen;
   });
+  ipcMain.handle('win:hud', (_e, open) => {
+    setHud(open);
+    return hudOpen;
+  });
   ipcMain.on('win:ignore-mouse', (_e, ignore) => {
-    if (!win) return;
+    if (!win || hudOpen) return;
     if (ignore) win.setIgnoreMouseEvents(true, { forward: true });
     else win.setIgnoreMouseEvents(false);
   });
 
   ipcMain.on('win:drag-start', () => {
-    if (!win) return;
+    if (!win || hudOpen) return;
     const cursor = screen.getCursorScreenPoint();
     const [x, y] = win.getPosition();
     drag = { cursor, x, y };
@@ -402,6 +438,7 @@ app.whenReady().then(async () => {
   trayCtl = createTray({
     toggleOrb: (forceShow) => setOrbVisible(forceShow ? true : !orbVisible),
     openPanel: (tab) => setPanel(true, tab),
+    toggleHud: () => send('shortcut', 'hud'),
     setMicMuted,
     setStartWithSystem,
     restartEngine: () => engine.restart(),

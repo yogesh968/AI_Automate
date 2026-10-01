@@ -116,6 +116,7 @@ def load_all() -> dict[str, Tool]:
         browser,
         files,
         google_services,
+        hud,
         input_control,
         mac_apps,
         mac_ui,

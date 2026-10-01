@@ -2,9 +2,15 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from 'rea
 import { bridge } from './bridge.js';
 import { useEngine } from './hooks/useEngine.js';
 import { AudioPlayer } from './audio/player.js';
+import { playSfx } from './audio/sfx.js';
+import Hud from './components/Hud.jsx';
 import Orb from './components/Orb.jsx';
 import Panel from './components/Panel.jsx';
 import Toasts from './components/Toasts.jsx';
+
+const HISTORY_LEN = 60; // ~90 s of HUD samples
+const emptyHistory = () => ({ cpu: [], ram: [], down: [] });
+const push = (arr, v) => [...arr.slice(-(HISTORY_LEN - 1)), Number(v) || 0];
 
 let localId = 0;
 const nextLocalId = (p) => `${p}-${Date.now()}-${++localId}`;
@@ -102,6 +108,10 @@ export default function App() {
   const [tab, setTab] = useState('chat');
   const [micMuted, setMicMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [hudOpen, setHudOpen] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [statsHistory, setStatsHistory] = useState(emptyHistory);
+  const [hudInfo, setHudInfo] = useState(null);
 
   const micLevel = useRef({ value: 0, t: 0 });
   const panelOpenRef = useRef(false);
@@ -110,6 +120,14 @@ export default function App() {
   micMutedRef.current = micMuted;
   const sendRef = useRef(() => false);
   const openedForErrorRef = useRef(false);
+  const hudOpenRef = useRef(false);
+  hudOpenRef.current = hudOpen;
+  const settingsRef = useRef(null);
+  settingsRef.current = settings;
+  const lastStateRef = useRef('idle');
+  const sfx = useCallback((name) => {
+    if (settingsRef.current?.sound_effects !== false) playSfx(name);
+  }, []);
 
   const toast = useCallback((title, body, kind = 'info') => {
     const id = nextLocalId('t');
@@ -136,6 +154,23 @@ export default function App() {
     setPanelOpen(open);
   }, []);
 
+  // Full-screen HUD. The engine streams telemetry only while it's open.
+  const setHud = useCallback(
+    (open) => {
+      open = !!open;
+      if (open === hudOpenRef.current) return;
+      hudOpenRef.current = open;
+      setHudOpen(open);
+      bridge.setHud(open);
+      sendRef.current({ type: 'hud_state', open });
+      if (open) {
+        setPanelOpen(false);
+        sfx('hud');
+      }
+    },
+    [sfx]
+  );
+
   // ---- engine messages ----------------------------------------------------
   const onMessage = useCallback(
     (msg) => {
@@ -146,11 +181,17 @@ export default function App() {
           if (msg.settings) setSettings(msg.settings);
           sendRef.current({ type: 'get_history', limit: 60 });
           sendRef.current({ type: 'mic_mute', muted: micMutedRef.current });
+          if (hudOpenRef.current) sendRef.current({ type: 'hud_state', open: true });
           break;
-        case 'state':
+        case 'state': {
+          const prev = lastStateRef.current;
+          lastStateRef.current = msg.state;
+          if (msg.state === 'listening' && prev !== 'listening') sfx('listen');
+          else if (prev === 'listening' && msg.state === 'thinking') sfx('done');
           setOrbState(msg.state);
           if (msg.state !== 'listening') setTranscript((t) => (t && !t.final ? null : t));
           break;
+        }
         case 'mic_level':
           micLevel.current = { value: Number(msg.level) || 0, t: performance.now() };
           break;
@@ -182,7 +223,8 @@ export default function App() {
             args: msg.args,
             description: msg.description,
           });
-          // Approval needs the user's eyes — bring the panel up.
+          // Approval needs the user's eyes — bring the panel up (leaving the HUD).
+          if (hudOpenRef.current) setHud(false);
           if (!panelOpenRef.current) openPanel(true, 'chat');
           else setTab('chat');
           break;
@@ -196,8 +238,32 @@ export default function App() {
           player.end(msg.id);
           break;
         case 'notify':
-          toast(msg.title || 'Jarvis', msg.body || '', msg.kind || 'info');
-          if (!panelOpenRef.current || msg.kind === 'reminder') bridge.notify(msg.title || 'Jarvis', msg.body || '');
+          toast(msg.title || 'Jarvis', msg.body || '', msg.kind === 'memory' ? 'info' : msg.kind || 'info');
+          // learned facts are a quiet in-app toast only; everything else may need a system notification
+          if (msg.kind !== 'memory' && (!panelOpenRef.current || msg.kind === 'reminder'))
+            bridge.notify(msg.title || 'Jarvis', msg.body || '');
+          break;
+        case 'interrupt':
+          // barge-in: the user said "Hey Jarvis" over the reply
+          player.stop();
+          dispatch({ type: 'cancel_running' });
+          sfx('interrupt');
+          break;
+        case 'hud':
+          setHud(!!msg.open);
+          break;
+        case 'system_stats':
+          if (msg.stats) {
+            setStats(msg.stats);
+            setStatsHistory((h) => ({
+              cpu: push(h.cpu, msg.stats.cpu),
+              ram: push(h.ram, msg.stats.ram),
+              down: push(h.down, msg.stats.net_down_kbps),
+            }));
+          }
+          break;
+        case 'hud_info':
+          setHudInfo(msg);
           break;
         case 'settings':
           if (msg.settings) setSettings(msg.settings);
@@ -231,7 +297,7 @@ export default function App() {
           break;
       }
     },
-    [openPanel, player, toast]
+    [openPanel, player, toast, setHud, sfx]
   );
 
   const { engine, conn, send, restart } = useEngine(onMessage);
@@ -320,12 +386,14 @@ export default function App() {
   }, []);
 
   const shortcutRef = useRef({});
-  shortcutRef.current = { listen, stop };
+  shortcutRef.current = { listen, stop, setHud };
   useEffect(
     () =>
       bridge.onShortcut((name) => {
         if (name === 'talk') shortcutRef.current.listen();
         if (name === 'stop') shortcutRef.current.stop();
+        if (name === 'hud') shortcutRef.current.setHud(!hudOpenRef.current);
+        if (name === 'hud-off') shortcutRef.current.setHud(false);
       }),
     []
   );
@@ -356,11 +424,13 @@ export default function App() {
   // Esc closes the panel.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape' && panelOpenRef.current) openPanel(false);
+      if (e.key !== 'Escape') return;
+      if (hudOpenRef.current) setHud(false);
+      else if (panelOpenRef.current) openPanel(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [openPanel]);
+  }, [openPanel, setHud]);
 
   // ---- orb ----------------------------------------------------------------
   let visualState = orbState;
@@ -375,6 +445,26 @@ export default function App() {
     const age = performance.now() - m.t;
     return age > 250 ? 0 : m.value;
   }, [player]);
+
+  if (hudOpen) {
+    return (
+      <div className="app hud-mode">
+        <Hud
+          state={visualState}
+          getLevel={getLevel}
+          stats={stats}
+          history={statsHistory}
+          info={hudInfo}
+          items={items}
+          transcript={transcript}
+          settings={settings}
+          onClose={() => setHud(false)}
+          onTalk={listen}
+        />
+        <Toasts toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    );
+  }
 
   return (
     <div className={`app ${panelOpen ? 'panel-open' : ''}`}>

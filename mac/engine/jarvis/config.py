@@ -28,6 +28,16 @@ DEFAULTS: dict[str, Any] = {
     "allowed_write_dirs": [],
     "confirm_by_voice": True,
     "start_with_system": True,
+    # --- "real JARVIS" behaviour ---
+    "persona": "classic",          # classic (movie JARVIS, calls you "sir") | desi (casual Indian friend)
+    "address_as": "sir",           # how the classic persona addresses the user
+    "follow_up": True,             # keep listening briefly after a spoken reply (no wake word needed)
+    "barge_in": True,              # "Hey Jarvis" while Jarvis is talking interrupts it
+    "startup_greeting": True,      # "Good evening, sir. All systems online." when the app starts
+    "proactive_alerts": True,      # speak up about low battery, CPU overload, internet down…
+    "auto_memory": True,           # quietly learn lasting facts about the user from conversations
+    "sound_effects": True,         # HUD chimes when listening starts/ends
+    "home_city": "",               # weather on the HUD; empty = detect from IP
 }
 
 # Premade ElevenLabs voice used until the user picks one (ideally an Indian voice

@@ -31,11 +31,50 @@ let settings = {
   allowed_write_dirs: [],
   confirm_by_voice: true,
   start_with_system: true,
+  persona: 'classic',
+  address_as: 'sir',
+  follow_up: true,
+  barge_in: true,
+  startup_greeting: true,
+  proactive_alerts: true,
+  auto_memory: true,
+  sound_effects: true,
+  home_city: '',
 };
 const keys = { groq: false, elevenlabs: false };
 const audit = [];
 const history = [];
 const pendingConfirms = new Map();
+let hudTimer = null;
+let fakeT = 0;
+function fakeStats() {
+  fakeT += 1;
+  const wave = (a, b, p) => a + (b - a) * (0.5 + 0.5 * Math.sin(fakeT / p));
+  return {
+    ts: Date.now() / 1000,
+    cpu: Math.round(wave(12, 58, 3) + Math.random() * 8),
+    cpu_ghz: 2.9,
+    cores: 12,
+    ram: Math.round(wave(52, 61, 9)),
+    ram_used_gb: 9.4,
+    ram_total_gb: 16,
+    disk: 71,
+    disk_free_gb: 138,
+    battery: { percent: 64, plugged: false, minutes_left: 187 },
+    net_up_kbps: Math.round(wave(5, 80, 2)),
+    net_down_kbps: Math.round(wave(40, 2400, 4)),
+    online: true,
+    uptime_s: 5 * 3600 + 1234 + fakeT,
+    processes: 284,
+    top: [
+      { name: 'chrome.exe', cpu: 12.4, mem_mb: 1830 },
+      { name: 'Code.exe', cpu: 6.1, mem_mb: 920 },
+      { name: 'python.exe', cpu: 3.2, mem_mb: 210 },
+      { name: 'explorer.exe', cpu: 1.1, mem_mb: 140 },
+      { name: 'Spotify.exe', cpu: 0.8, mem_mb: 310 },
+    ],
+  };
+}
 
 // ---- minimal RFC 6455 (text frames only) ----------------------------------
 function encodeFrame(str) {
@@ -223,6 +262,24 @@ function onMessage(raw) {
       break;
     case 'mic_mute':
       state(msg.muted ? 'sleeping' : 'idle');
+      break;
+    case 'hud_state':
+      clearInterval(hudTimer);
+      if (msg.open) {
+        send({
+          type: 'hud_info',
+          weather: { place: 'New Delhi, India', now: '31.2°C (feels 34°C), partly cloudy, humidity 58%, wind 9 km/h' },
+          reminders: [
+            { text: 'Team standup', due: Date.now() / 1000 + 3600, repeat: 'daily' },
+            { text: 'Call Priya — birthday', due: Date.now() / 1000 + 86400, repeat: '' },
+          ],
+          memories: 14,
+          tools: 90,
+        });
+        const tick = () => send({ type: 'system_stats', stats: fakeStats() });
+        tick();
+        hudTimer = setInterval(tick, 1500);
+      }
       break;
     default:
       break;

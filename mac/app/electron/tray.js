@@ -20,6 +20,7 @@ function createTray(actions) {
         click: () => actions.toggleOrb(),
       },
       { label: 'Open panel', accelerator: 'Command+Option+P', click: () => actions.openPanel('chat') },
+      { label: state.hudOpen ? 'Exit HUD mode' : 'HUD mode (full screen)', click: () => actions.toggleHud() },
       { label: 'Settings…', click: () => actions.openPanel('settings') },
       { type: 'separator' },
       {

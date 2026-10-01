@@ -50,6 +50,21 @@ macOS protects these; Jarvis shows a **Permissions card** in the panel with **Al
 After enabling Accessibility or Screen Recording, choose **Restart engine** (menu-bar icon or Settings).
 In dev mode the permission belongs to **Electron** / your terminal; the built `Jarvis.app` asks for itself.
 
+## What makes it feel like the real JARVIS
+
+| Feature | What it does |
+|---|---|
+| **Classic persona** | Composed, dry-witted, calls you *sir* (Settings → Personality → *Address me as*). Switch to *Desi friend* for casual Hinglish. |
+| **Boot greeting** | "Good evening, sir. It's 7:05 PM. All systems are online." — works even before any API key is set. |
+| **Continuous conversation** | After answering a voice command it keeps listening ~5 s, so you can just keep talking. |
+| **Interrupt** | Say "Hey Jarvis" while it's talking to cut it off and give a new command. |
+| **HUD mode** | `⌘⌥U`, menu-bar icon → *HUD mode*, or say "HUD dikhao": full-screen arc-reactor display with live CPU/RAM/disk/battery gauges, network, top processes, weather, reminders and the action log. `Esc` closes it. |
+| **Proactive alerts** | Speaks up on its own: low battery, battery full, CPU overload, memory pressure, disk almost full, internet down/back. |
+| **Learns about you** | Quietly remembers lasting facts you mention ("my sister Priya…") — shows a small *Noted* toast. |
+| **HUD sound effects** | Soft chimes when it starts/stops listening. |
+
+For the most movie-like voice: ElevenLabs default voice (*George*, British) or the free **Ryan — British English** voice.
+
 ## What Jarvis can do (engine tools)
 
 - **System**: volume, mute, brightness, media keys, lock, sleep, shut down / restart / log out (with delay + cancel), Wi-Fi, Bluetooth, dark/light mode, wallpaper, empty Trash, System Settings pages, battery, system info, top processes, kill process, clipboard, date/time
@@ -125,5 +140,7 @@ Link the `.dmg` from your download page (e.g. a Vercel landing page) with
 - **Engine won't start** → panel shows the error; logs: menu-bar icon → *Open logs folder* (`engine.log`, `engine-core.log`).
 - **"macOS blocked this"** from a tool → enable the named permission, then *Restart engine*.
 - **Wake word too sensitive / deaf** → Settings → Listening → sensitivity.
+- **Jarvis interrupts itself while talking** → Settings → Listening → turn off *Interrupt with “Hey Jarvis”* (or use headphones).
+- **It keeps listening after answering** → that's *Continuous conversation*; stay quiet 5 s or turn it off in Settings → Listening.
 - **Brightness not exact** → `brew install brightness`. **Bluetooth toggle** → `brew install blueutil`.
 - Engine smoke test (no UI): `cd engine && .venv/bin/python tests/smoke_ws.py "hello jarvis"`.

@@ -25,6 +25,7 @@ async def run_server(core: Core, port: int, token: str) -> None:
         log.info("UI connected (%d client(s))", len(core.clients))
         try:
             await ws.send(json.dumps(core.hello(), ensure_ascii=False))
+            await core.on_connect()
             async for raw in ws:
                 try:
                     msg = json.loads(raw)
