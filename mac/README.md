@@ -9,7 +9,7 @@ This is the **macOS codebase** — separate from `../windows`. Same design and p
 
 ```
 mac/
-├── app/        Electron + React + Three.js — the orb, glass panel, menu-bar icon, shortcuts, permissions
+├── app/        Electron + React + Three.js — the full-screen JARVIS display, mini orb, settings, menu-bar icon, shortcuts, permissions
 ├── engine/     Python 3.12 — Groq brain, voice, memory, safety and ~97 tools
 ├── setup.sh    one-time developer setup
 ├── build.sh    builds Jarvis.app + .dmg
@@ -32,13 +32,13 @@ chmod +x setup.sh build.sh
 cd app && npm run dev
 ```
 
-Click the orb → **Settings** → paste your Groq (and ElevenLabs) keys. They are stored in the **macOS Keychain**
+On the JARVIS screen click **SETTINGS** (or `⌘⌥P`) → paste your Groq (and ElevenLabs) keys. They are stored in the **macOS Keychain**
 (service `jarvis`), never in files. For quick dev testing you can instead put them in `engine/.env`
 (copy `engine/.env.example`).
 
 ## Permissions (important on macOS)
 
-macOS protects these; Jarvis shows a **Permissions card** in the panel with **Allow** buttons until they're granted:
+macOS protects these; Jarvis opens **Settings** with a **Permissions card** and **Allow** buttons until they're granted:
 
 | Permission | Why | Where |
 |---|---|---|
@@ -58,7 +58,8 @@ In dev mode the permission belongs to **Electron** / your terminal; the built `J
 | **Boot greeting** | "Good evening, sir. It's 7:05 PM. All systems are online." — works even before any API key is set. |
 | **Continuous conversation** | After answering a voice command it keeps listening ~5 s, so you can just keep talking. |
 | **Interrupt** | Say "Hey Jarvis" while it's talking to cut it off and give a new command. |
-| **HUD mode** | `⌘⌥U`, menu-bar icon → *HUD mode*, or say "HUD dikhao": full-screen arc-reactor display with live CPU/RAM/disk/battery gauges, network, top processes, weather, reminders and the action log. `Esc` closes it. |
+| **Voice-only JARVIS screen** | Jarvis opens as one big full-screen arc-reactor display (live CPU/RAM/disk/battery gauges, network, top processes, weather, reminders). There is no chat window — just talk. Approvals show as a big YES/NO prompt and can be answered by voice. `Esc` / *Minimize* shrinks it to the small orb; click the orb, `⌘⌥U`, the menu-bar icon → *Show Jarvis*, or say "HUD dikhao" to bring it back. Apps Jarvis opens appear in front of it. |
+| **Fast replies** | Each request only carries the ~20 everyday tools plus the groups your words point at (the model can load more itself), and when Groq throttles one model Jarvis instantly switches to the next (`gpt-oss-120b` → `gpt-oss-20b` → `qwen3.8-27b`) instead of waiting. |
 | **Proactive alerts** | Speaks up on its own: low battery, battery full, CPU overload, memory pressure, disk almost full, internet down/back. |
 | **Learns about you** | Quietly remembers lasting facts you mention ("my sister Priya…") — shows a small *Noted* toast. |
 | **HUD sound effects** | Soft chimes when it starts/stops listening. |
@@ -81,11 +82,11 @@ For the most movie-like voice: ElevenLabs default voice (*George*, British) or t
 
 ## Safety
 
-- Every action has a level: **auto** (harmless), **confirm** (you approve with a Yes/No card or by saying "haan"/"nahi"), **blocked**.
+- Every action has a level: **auto** (harmless), **confirm** (Jarvis asks out loud — say "haan"/"nahi" or press YES/NO on the screen), **blocked**.
 - Blocked: writing to `/System`, `/Library`, `/usr`, `/bin`, `/private`, `/Applications`, `~/Library/Keychains`, `~/.ssh`…; shell commands like `rm -rf /`, `sudo rm`, `diskutil erase…`, `dd of=/dev/…`, `csrutil`, `nvram`, `curl … | sh`, keychain dumping, etc.
 - Deletes go to the **Trash**. **Dry-run mode** and **allowed folders** in Settings.
 - **Kill switch**: `⌘⌥J` stops everything instantly.
-- Audit log: Activity tab + `~/Library/Application Support/Jarvis/logs/audit.jsonl`.
+- Audit log: `~/Library/Application Support/Jarvis/logs/audit.jsonl`.
 
 ## Gmail + Google Calendar (optional)
 
@@ -137,7 +138,7 @@ Link the `.dmg` from your download page (e.g. a Vercel landing page) with
 
 ## Troubleshooting
 
-- **Engine won't start** → panel shows the error; logs: menu-bar icon → *Open logs folder* (`engine.log`, `engine-core.log`).
+- **Engine won't start** → Settings shows the error; logs: menu-bar icon → *Open logs folder* (`engine.log`, `engine-core.log`).
 - **"macOS blocked this"** from a tool → enable the named permission, then *Restart engine*.
 - **Wake word too sensitive / deaf** → Settings → Listening → sensitivity.
 - **Jarvis interrupts itself while talking** → Settings → Listening → turn off *Interrupt with “Hey Jarvis”* (or use headphones).

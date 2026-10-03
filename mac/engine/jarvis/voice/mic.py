@@ -94,7 +94,7 @@ class Recorder:
         seconds = self.total * FRAME_SEC
         if not self.started and seconds > self.start_timeout:
             return "nothing"
-        if self.started and self.silence * FRAME_SEC >= 0.9:
+        if self.started and self.silence * FRAME_SEC >= 0.7:
             return "done"
         if seconds > 25:
             return "done"

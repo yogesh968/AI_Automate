@@ -102,10 +102,8 @@ export default function App() {
   const [hello, setHello] = useState(null);
   const [keys, setKeys] = useState({ groq: false, elevenlabs: false });
   const [settings, setSettings] = useState(null);
-  const [audit, setAudit] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [tab, setTab] = useState('chat');
   const [micMuted, setMicMuted] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [hudOpen, setHudOpen] = useState(false);
@@ -148,9 +146,9 @@ export default function App() {
   }
   const player = playerRef.current;
 
-  const openPanel = useCallback((open, nextTab) => {
-    if (nextTab) setTab(nextTab);
-    bridge.setPanel(open, nextTab);
+  // The panel only holds Settings now.
+  const openPanel = useCallback((open) => {
+    bridge.setPanel(open, 'settings');
     setPanelOpen(open);
   }, []);
 
@@ -158,7 +156,10 @@ export default function App() {
   const setHud = useCallback(
     (open) => {
       open = !!open;
-      if (open === hudOpenRef.current) return;
+      if (open === hudOpenRef.current) {
+        if (open) bridge.setHud(true); // already open but maybe behind other windows: bring it forward
+        return;
+      }
       hudOpenRef.current = open;
       setHudOpen(open);
       bridge.setHud(open);
@@ -179,7 +180,6 @@ export default function App() {
           setHello(msg);
           if (msg.keys) setKeys(msg.keys);
           if (msg.settings) setSettings(msg.settings);
-          sendRef.current({ type: 'get_history', limit: 60 });
           sendRef.current({ type: 'mic_mute', muted: micMutedRef.current });
           if (hudOpenRef.current) sendRef.current({ type: 'hud_state', open: true });
           break;
@@ -223,10 +223,8 @@ export default function App() {
             args: msg.args,
             description: msg.description,
           });
-          // Approval needs the user's eyes — bring the panel up (leaving the HUD).
-          if (hudOpenRef.current) setHud(false);
-          if (!panelOpenRef.current) openPanel(true, 'chat');
-          else setTab('chat');
+          // Jarvis asks "yes or no?" out loud; the HUD also shows the request with buttons.
+          if (!hudOpenRef.current && !panelOpenRef.current) setHud(true);
           break;
         case 'confirm_resolved':
           dispatch({ type: 'confirm_resolved', id: msg.id, approved: msg.approved });
@@ -240,7 +238,7 @@ export default function App() {
         case 'notify':
           toast(msg.title || 'Jarvis', msg.body || '', msg.kind === 'memory' ? 'info' : msg.kind || 'info');
           // learned facts are a quiet in-app toast only; everything else may need a system notification
-          if (msg.kind !== 'memory' && (!panelOpenRef.current || msg.kind === 'reminder'))
+          if (msg.kind !== 'memory' && (!hudOpenRef.current || msg.kind === 'reminder'))
             bridge.notify(msg.title || 'Jarvis', msg.body || '');
           break;
         case 'interrupt':
@@ -271,25 +269,6 @@ export default function App() {
         case 'keys':
           setKeys({ groq: !!msg.groq, elevenlabs: !!msg.elevenlabs });
           break;
-        case 'audit':
-          setAudit(Array.isArray(msg.entries) ? msg.entries : []);
-          break;
-        case 'history':
-          if (Array.isArray(msg.messages)) {
-            dispatch({
-              type: 'reset',
-              items: msg.messages
-                .filter((m) => m.role === 'user' || m.role === 'assistant')
-                .map((m, i) => ({
-                  kind: m.role,
-                  id: `h-${i}-${m.ts || 0}`,
-                  text: m.text || '',
-                  done: true,
-                  ts: m.ts ? m.ts * (m.ts < 1e12 ? 1000 : 1) : Date.now(),
-                })),
-            });
-          }
-          break;
         case 'error':
           toast('Something went wrong', msg.message || 'Unknown error', 'error');
           break;
@@ -307,7 +286,7 @@ export default function App() {
   useEffect(() => {
     if (engine.status === 'error' && !openedForErrorRef.current) {
       openedForErrorRef.current = true;
-      openPanel(true, 'chat');
+      openPanel(true, 'settings');
     }
     if (engine.status === 'ready') openedForErrorRef.current = false;
   }, [engine.status, openPanel]);
@@ -318,18 +297,6 @@ export default function App() {
     toast('Jarvis is offline', 'The engine is not connected yet.', 'warning');
     return false;
   }, [conn, toast]);
-
-  const sendText = useCallback(
-    (text) => {
-      const t = text.trim();
-      if (!t || !requireConn()) return false;
-      player.stop();
-      dispatch({ type: 'user', text: t });
-      send({ type: 'text', text: t });
-      return true;
-    },
-    [player, requireConn, send]
-  );
 
   const listen = useCallback(() => {
     if (!requireConn()) return;
@@ -369,11 +336,15 @@ export default function App() {
     [send]
   );
 
+  // Jarvis starts as the big full-screen display.
+  useEffect(() => {
+    setHud(true);
+  }, [setHud]);
+
   // ---- main-process events ------------------------------------------------
   useEffect(() => {
-    const offPanel = bridge.onPanel(({ open, tab: t }) => {
+    const offPanel = bridge.onPanel(({ open }) => {
       setPanelOpen(open);
-      if (t) setTab(t);
     });
     const offMute = bridge.onMicMuted((muted) => {
       setMicMuted(muted);
@@ -393,6 +364,7 @@ export default function App() {
         if (name === 'talk') shortcutRef.current.listen();
         if (name === 'stop') shortcutRef.current.stop();
         if (name === 'hud') shortcutRef.current.setHud(!hudOpenRef.current);
+        if (name === 'hud-on') shortcutRef.current.setHud(true);
         if (name === 'hud-off') shortcutRef.current.setHud(false);
       }),
     []
@@ -446,6 +418,8 @@ export default function App() {
     return age > 250 ? 0 : m.value;
   }, [player]);
 
+  const pendingConfirm = [...items].reverse().find((i) => i.kind === 'confirm' && i.status === 'pending') || null;
+
   if (hudOpen) {
     return (
       <div className="app hud-mode">
@@ -455,11 +429,14 @@ export default function App() {
           stats={stats}
           history={statsHistory}
           info={hudInfo}
-          items={items}
           transcript={transcript}
           settings={settings}
+          keys={keys}
+          confirm={pendingConfirm}
+          onConfirm={confirm}
           onClose={() => setHud(false)}
           onTalk={listen}
+          onSettings={() => openPanel(true, 'settings')}
         />
         <Toasts toasts={toasts} onDismiss={dismissToast} />
       </div>
@@ -470,8 +447,6 @@ export default function App() {
     <div className={`app ${panelOpen ? 'panel-open' : ''}`}>
       {panelOpen && (
         <Panel
-          tab={tab}
-          setTab={setTab}
           onClose={() => openPanel(false)}
           engine={engine}
           conn={conn}
@@ -480,28 +455,17 @@ export default function App() {
           hello={hello}
           keys={keys}
           settings={settings}
-          items={items}
-          transcript={transcript}
-          audit={audit}
           micMuted={micMuted}
           onToggleMic={toggleMic}
-          onSendText={sendText}
-          onListen={listen}
-          onStop={stop}
-          onConfirm={confirm}
           send={send}
           toast={toast}
-          onClearChat={() => {
-            send({ type: 'clear_history' });
-            dispatch({ type: 'reset', items: [] });
-          }}
         />
       )}
       <OrbHandle
         state={visualState}
         getLevel={getLevel}
         panelOpen={panelOpen}
-        onClick={() => openPanel(!panelOpenRef.current, panelOpenRef.current ? undefined : 'chat')}
+        onClick={() => setHud(true)}
         onTalk={listen}
         onPttStart={pttStart}
         onPttStop={pttStop}

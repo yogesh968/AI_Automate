@@ -135,6 +135,6 @@ Env vars `GROQ_API_KEY` / `ELEVENLABS_API_KEY` (or `engine/.env`) override the k
 |---|---|---|
 | `Ctrl+Alt+Space` | `Cmd+Option+Space` | talk now |
 | `Ctrl+Alt+J` | `Cmd+Option+J` | **kill switch** (sends `stop`) |
-| `Ctrl+Alt+P` | `Cmd+Option+P` | show/hide settings (Windows) / panel (macOS) |
+| `Ctrl+Alt+P` | `Cmd+Option+P` | show/hide settings |
 | `Ctrl+Alt+H` | `Cmd+Option+H` | hide/show the orb |
-| `Ctrl+Alt+U` | — | JARVIS screen (full screen) on/off — Windows only for now |
+| `Ctrl+Alt+U` | `Cmd+Option+U` | JARVIS screen (full screen) on/off |

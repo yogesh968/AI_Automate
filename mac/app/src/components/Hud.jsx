@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Orb from './Orb.jsx';
 import '../hud.css';
 
@@ -112,22 +112,27 @@ function Card({ title, children, className = '' }) {
   );
 }
 
-export default function Hud({ state, getLevel, stats, history, info, items, transcript, settings, onClose, onTalk }) {
+// Voice-only: no chat log. The centre shows what Jarvis is doing and, while you talk, what it heard.
+export default function Hud({
+  state,
+  getLevel,
+  stats,
+  history,
+  info,
+  transcript,
+  settings,
+  keys,
+  confirm,
+  onConfirm,
+  onClose,
+  onTalk,
+  onSettings,
+}) {
   const now = useClock();
   const s = stats || {};
   const userName = settings?.user_name || '';
   const hour = now.getHours();
   const pod = hour < 5 ? 'night' : hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 22 ? 'evening' : 'night';
-
-  const lastReply = useMemo(() => {
-    for (let i = items.length - 1; i >= 0; i--) if (items[i].kind === 'assistant' && items[i].text) return items[i];
-    return null;
-  }, [items]);
-  const lastUser = useMemo(() => {
-    for (let i = items.length - 1; i >= 0; i--) if (items[i].kind === 'user') return items[i];
-    return null;
-  }, [items]);
-  const actions = useMemo(() => items.filter((i) => i.kind === 'tool').slice(-6).reverse(), [items]);
 
   const bat = s.battery;
   const weather = info?.weather;
@@ -183,7 +188,7 @@ export default function Hud({ state, getLevel, stats, history, info, items, tran
                 sub={bat.minutes_left ? `${Math.floor(bat.minutes_left / 60)}h ${pad(bat.minutes_left % 60)}m left` : bat.plugged ? 'on AC power' : null}
               />
             ) : (
-              <Gauge label="POWER" value={100} sub="AC power" />
+              <Gauge label="POWER" value={100} sub="AC power" invert />
             )}
           </div>
         </Card>
@@ -208,16 +213,33 @@ export default function Hud({ state, getLevel, stats, history, info, items, tran
         </div>
         <div className={`hud-state st-${state}`}>{STATE_LABEL[state] || state}</div>
         <div className="hud-subs">
-          {transcript?.text ? (
-            <p className="hud-you">“{transcript.text}”</p>
-          ) : lastUser ? (
-            <p className="hud-you">“{lastUser.text}”</p>
-          ) : (
-            <p className="hud-you muted">
-              Good {pod}{userName ? `, ${userName}` : ''}. Say “Hey Jarvis” or click the core.
+          {confirm ? (
+            <div className="hud-confirm">
+              <p className="hud-confirm-q">{confirm.description || confirm.tool}</p>
+              <p className="hud-confirm-hint">Say “yes” or “no”</p>
+              <div className="hud-confirm-btns">
+                <button className="hud-btn yes" onClick={() => onConfirm(confirm.id, true)}>
+                  YES
+                </button>
+                <button className="hud-btn no" onClick={() => onConfirm(confirm.id, false)}>
+                  NO
+                </button>
+              </div>
+            </div>
+          ) : keys && !keys.groq ? (
+            <p className="hud-you">
+              Groq API key missing.{' '}
+              <button className="hud-link" onClick={onSettings}>
+                Open settings
+              </button>
             </p>
-          )}
-          {lastReply && <p className="hud-reply">{lastReply.text}</p>}
+          ) : transcript?.text && state === 'listening' ? (
+            <p className="hud-you">“{transcript.text}”</p>
+          ) : state === 'idle' ? (
+            <p className="hud-you muted">
+              Good {pod}{userName ? `, ${userName}` : ''}. Say “Hey Jarvis”.
+            </p>
+          ) : null}
         </div>
       </main>
 
@@ -285,21 +307,15 @@ export default function Hud({ state, getLevel, stats, history, info, items, tran
 
       {/* ---------------- bottom: action log */}
       <footer className="hud-bottom">
-        <div className="hud-log">
-          {actions.length === 0 ? (
-            <span className="muted">No actions yet this session.</span>
-          ) : (
-            actions.map((a) => (
-              <span key={a.id} className={`hud-log-item s-${a.status}`}>
-                {a.status === 'running' ? '◌' : a.status === 'ok' ? '✓' : '✕'} {a.name.replace(/_/g, ' ')}
-              </span>
-            ))
-          )}
+        <div className="hud-log muted">
+          “Hey Jarvis” to talk · <kbd>⌘</kbd><kbd>⌥</kbd><kbd>U</kbd> show / hide
         </div>
         <div className="hud-help">
-          <kbd>Esc</kbd> exit HUD
-          <button className="hud-exit" onClick={onClose}>
-            CLOSE
+          <button className="hud-exit" onClick={onSettings}>
+            SETTINGS
+          </button>
+          <button className="hud-exit" onClick={onClose} title="Esc">
+            MINIMIZE
           </button>
         </div>
       </footer>

@@ -367,8 +367,8 @@
 }
 .hud-core {
   position: relative;
-  width: min(46vh, 480px);
-  height: min(46vh, 480px);
+  width: min(58vh, 620px);
+  height: min(58vh, 620px);
   display: grid;
   place-items: center;
 }
@@ -440,16 +440,60 @@
   color: var(--muted);
   font-style: italic;
 }
-.hud-reply {
-  margin: 0;
-  font-size: 19px;
-  line-height: 1.5;
-  color: #eafcff;
-  text-shadow: 0 0 14px rgba(56, 225, 255, 0.25);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.hud-confirm {
+  display: inline-block;
+  padding: 16px 28px;
+  border: 1px solid var(--warn, #ffb547);
+  border-radius: 4px 16px 4px 16px;
+  background: rgba(255, 181, 71, 0.08);
+  box-shadow: 0 0 24px rgba(255, 181, 71, 0.15);
+}
+.hud-confirm-q {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #fff3df;
+}
+.hud-confirm-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hud-confirm-btns {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+.hud-btn {
+  min-width: 96px;
+  padding: 8px 18px;
+  border-radius: 3px 10px 3px 10px;
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 3px;
+  cursor: pointer;
+  background: transparent;
+}
+.hud-btn.yes {
+  border: 1px solid var(--ok);
+  color: var(--ok);
+}
+.hud-btn.no {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.hud-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--cyan);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* ---- bottom */
@@ -471,16 +515,6 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   text-transform: uppercase;
-}
-.hud-log-item.s-ok {
-  color: var(--ok);
-}
-.hud-log-item.s-failed {
-  color: var(--danger);
-}
-.hud-log-item.s-running {
-  color: var(--cyan);
-  animation: pulse 0.8s infinite;
 }
 .hud-help {
   display: flex;

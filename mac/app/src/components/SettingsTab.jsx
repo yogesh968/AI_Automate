@@ -7,12 +7,12 @@ const DEFAULTS = {
   user_name: '',
   assistant_name: 'Jarvis',
   llm_model: 'openai/gpt-oss-120b',
-  fast_model: 'llama-3.1-8b-instant',
-  vision_model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+  fast_model: 'openai/gpt-oss-20b',
+  vision_model: 'qwen/qwen3.8-27b',
   stt_model: 'whisper-large-v3-turbo',
   tts_provider: 'elevenlabs',
   elevenlabs_voice_id: '',
-  elevenlabs_model: 'eleven_multilingual_v2',
+  elevenlabs_model: 'eleven_flash_v2_5',
   edge_voice: 'hi-IN-MadhurNeural',
   speak_replies: true,
   hindi_script: 'devanagari',
@@ -33,17 +33,8 @@ const DEFAULTS = {
   home_city: '',
 };
 
-const LLM_SUGGESTIONS = [
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
-  'llama-3.3-70b-versatile',
-  'moonshotai/kimi-k2-instruct',
-  'llama-3.1-8b-instant',
-];
-const VISION_SUGGESTIONS = [
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'meta-llama/llama-4-maverick-17b-128e-instruct',
-];
+const LLM_SUGGESTIONS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+const VISION_SUGGESTIONS = ['qwen/qwen3.8-27b'];
 const STT_SUGGESTIONS = ['whisper-large-v3-turbo', 'whisper-large-v3'];
 const ELEVEN_MODELS = [
   ['eleven_multilingual_v2', 'Multilingual v2 — most natural'],

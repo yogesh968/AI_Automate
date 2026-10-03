@@ -19,9 +19,12 @@ function createTray(actions) {
         accelerator: 'Command+Option+H',
         click: () => actions.toggleOrb(),
       },
-      { label: 'Open panel', accelerator: 'Command+Option+P', click: () => actions.openPanel('chat') },
-      { label: state.hudOpen ? 'Exit HUD mode' : 'HUD mode (full screen)', click: () => actions.toggleHud() },
-      { label: 'Settings…', click: () => actions.openPanel('settings') },
+      {
+        label: state.hudOpen ? 'Minimize to orb' : 'Show Jarvis',
+        accelerator: 'Command+Option+U',
+        click: () => actions.toggleHud(),
+      },
+      { label: 'Settings…', accelerator: 'Command+Option+P', click: () => actions.openPanel('settings') },
       { type: 'separator' },
       {
         label: 'Mute microphone',

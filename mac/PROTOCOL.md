@@ -4,7 +4,7 @@
 
 The desktop app has two processes:
 
-- **app/** — Electron + React + Three.js. Shows the floating orb and the glass panel, plays audio, owns global shortcuts and the menu-bar icon.
+- **app/** — Electron + React + Three.js. Shows the full-screen JARVIS display, the mini orb and the settings panel, plays audio, owns global shortcuts and the menu-bar icon.
 - **engine/** — Python. Brain (Groq LLM), voice (wake word, mic, STT, TTS), memory, safety and all device tools.
 
 Electron spawns the engine and they talk over a local WebSocket.
@@ -87,12 +87,12 @@ Every message is one JSON object with a `type` field.
   "user_name": "",
   "assistant_name": "Jarvis",
   "llm_model": "openai/gpt-oss-120b",
-  "fast_model": "llama-3.1-8b-instant",
-  "vision_model": "meta-llama/llama-4-scout-17b-16e-instruct",
+  "fast_model": "openai/gpt-oss-20b",
+  "vision_model": "qwen/qwen3.8-27b",
   "stt_model": "whisper-large-v3-turbo",
   "tts_provider": "elevenlabs",
   "elevenlabs_voice_id": "",
-  "elevenlabs_model": "eleven_multilingual_v2",
+  "elevenlabs_model": "eleven_flash_v2_5",
   "edge_voice": "hi-IN-MadhurNeural",
   "speak_replies": true,
   "hindi_script": "devanagari",
@@ -110,7 +110,8 @@ Every message is one JSON object with a `type` field.
   "proactive_alerts": true,
   "auto_memory": true,
   "sound_effects": true,
-  "home_city": ""
+  "home_city": "",
+  "settings_rev": 2
 }
 ```
 
@@ -139,9 +140,9 @@ Each action tries its keys in order; the first one not taken by another app wins
 |---|---|
 | talk now | `⌘⌥Space` → `⌃⌥Space` → `⌘⌥K` |
 | **kill switch** (sends `stop`) | `⌘⌥J` → `⌃⌥J` |
-| show/hide panel | `⌘⌥P` → `⌃⌥P` |
+| show/hide settings | `⌘⌥P` → `⌃⌥P` |
 | hide/show the orb | `⌘⌥H` → `⌃⌥H` |
-| HUD mode (full screen) on/off | `⌘⌥U` → `⌃⌥U` |
+| JARVIS screen (full screen) / minimize to orb | `⌘⌥U` → `⌃⌥U` |
 
 ## 🍎 macOS permissions (Electron IPC, not part of the WebSocket protocol)
 
