@@ -31,6 +31,7 @@ class SentenceSplitter:
     """Cuts streamed text into speakable pieces. The first piece is short so speech starts fast."""
 
     BOUNDARY = re.compile(r"[.!?।]+[\"'”’)]*\s+|\n+")
+    SOFT = re.compile(r"[,;:—–]\s+")  # the first piece may also end at a pause, so speech starts sooner
 
     def __init__(self) -> None:
         self.buf = ""
@@ -46,6 +47,11 @@ class SentenceSplitter:
                 if m.end() >= min_len:
                     cut = m.end()
                     break
+            if cut is None and self.emitted == 0:
+                for m in self.SOFT.finditer(self.buf):
+                    if m.end() >= 24:
+                        cut = m.end()
+                        break
             if cut is None:
                 break
             piece, self.buf = self.buf[:cut].strip(), self.buf[cut:]
@@ -62,9 +68,22 @@ class SentenceSplitter:
 class TTS:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.http = httpx.AsyncClient(timeout=30)
+        self.http = httpx.AsyncClient(timeout=30, limits=httpx.Limits(max_keepalive_connections=8,
+                                                                       keepalive_expiry=300))
         self.eleven_off_until = 0.0
         self.last_error = ""
+        self._warmed = 0.0
+
+    async def warm(self) -> None:
+        """Open the connection to ElevenLabs ahead of time so the first sentence isn't slowed by TLS."""
+        if (self.settings["tts_provider"] != "elevenlabs" or not get_key("elevenlabs")
+                or time.time() < self.eleven_off_until or time.time() - self._warmed < 45):
+            return
+        self._warmed = time.time()
+        try:
+            await self.http.get("https://api.elevenlabs.io/v1/models", headers={"xi-api-key": get_key("elevenlabs")})
+        except Exception as exc:  # noqa: BLE001 — just a warm-up
+            log.debug("elevenlabs warm-up failed: %s", exc)
 
     async def synth(self, text: str, previous_text: str = "") -> tuple[bytes | None, str]:
         """Returns (mp3 bytes, provider used)."""

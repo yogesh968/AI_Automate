@@ -74,6 +74,8 @@ class Recorder:
         self.loud_run = 0
         self.silence = 0
         self.total = 0
+        self.first_loud = -1  # frame index where speech started
+        self.last_loud = -1
 
     def feed(self, frame: np.ndarray) -> str:
         """Returns 'continue', 'done' or 'nothing' (no speech heard)."""
@@ -83,6 +85,9 @@ class Recorder:
         if self.ptt:
             return "done" if self.total * FRAME_SEC > 60 else "continue"
         if level > self.threshold:
+            if self.first_loud < 0:
+                self.first_loud = self.total - 1
+            self.last_loud = self.total - 1
             self.loud_run += 1
             self.silence = 0
             if self.loud_run >= 2:
@@ -104,7 +109,14 @@ class Recorder:
         return self.started or (self.ptt and self.total * FRAME_SEC > 0.4)
 
     def wav(self) -> bytes:
-        audio = np.concatenate(self.frames) if self.frames else np.zeros(FRAME, dtype=np.int16)
+        frames = self.frames
+        if not self.ptt and self.started and self.first_loud >= 0:
+            # Send only the speech (+ a little padding): less to upload and transcribe, and Whisper
+            # invents fewer words from leading/trailing silence.
+            lo = max(0, self.first_loud - 4)       # ~0.3 s before
+            hi = min(len(frames), self.last_loud + 4)  # ~0.3 s after
+            frames = frames[lo:hi]
+        audio = np.concatenate(frames) if frames else np.zeros(FRAME, dtype=np.int16)
         buf = io.BytesIO()
         with wave.open(buf, "wb") as w:
             w.setnchannels(1)

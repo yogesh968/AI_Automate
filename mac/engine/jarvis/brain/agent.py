@@ -13,7 +13,7 @@ from ..context import ctx
 from ..safety import audit
 from ..safety.guard import decide
 from ..tools.base import AUTO, BLOCKED, CONFIRM, REGISTRY
-from . import toolset
+from . import quick, toolset
 from .prompts import system_prompt
 
 log = logging.getLogger(__name__)
@@ -107,9 +107,44 @@ async def _run_tool(name: str, args: dict[str, Any], hooks: Hooks) -> str:
     return result
 
 
+async def _run_quick(cmd: quick.Quick, hooks: Hooks) -> str | None:
+    """Run an instant command. Returns the spoken reply, or None when the LLM should take over."""
+    tool = REGISTRY.get(cmd.tool)
+    if not tool or decide(tool, cmd.args).level != AUTO:
+        return None
+    result = await _run_tool(cmd.tool, cmd.args, hooks)
+    if quick.failed(result):
+        return None
+    reply = cmd.reply(result, quick.Voice(ctx.settings, cmd.hindi))
+    if reply:
+        await hooks.on_text(reply)
+    return reply
+
+
+async def _run_calls(calls: list[dict[str, Any]], hooks: Hooks) -> list[str]:
+    """Run the model's tool calls. Harmless ones run side by side; anything needing approval runs alone."""
+    parsed = [(c["name"], _parse_args(c["arguments"])) for c in calls]
+    tools = [REGISTRY.get(name) for name, _ in parsed]
+    parallel = len(calls) > 1 and all(
+        t and decide(t, {k: v for k, v in a.items() if k in (t.parameters.get("properties") or {})}).level == AUTO
+        for t, (_, a) in zip(tools, parsed))
+    if parallel:
+        return list(await asyncio.gather(*(_run_tool(name, args, hooks) for name, args in parsed)))
+    return [await _run_tool(name, args, hooks) for name, args in parsed]
+
+
 async def run_agent(user_text: str, hooks: Hooks) -> str:
     """Run one user turn. Returns the final spoken reply text."""
     store = ctx.store
+    if ctx.settings["instant_commands"]:
+        cmd = quick.match(user_text)
+        if cmd:
+            reply = await _run_quick(cmd, hooks)
+            if reply is not None:
+                log.info("instant command: %s %s", cmd.tool, cmd.args)
+                store.add_message("user", user_text)
+                store.add_message("assistant", reply or "(done)")
+                return reply
     history = store.recent_messages(limit=10)
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system_prompt(ctx.settings, store.facts_for_prompt(user_text))}
@@ -139,16 +174,19 @@ async def run_agent(user_text: str, hooks: Hooks) -> str:
                 for i, c in enumerate(calls)
             ],
         })
+        results: dict[int, str] = {}
         for i, c in enumerate(calls):
-            args = _parse_args(c["arguments"])
             if c["name"] == "load_tools":
-                new = {g for g in args.get("groups") or [] if g in toolset.GROUPS}
+                new = {g for g in _parse_args(c["arguments"]).get("groups") or [] if g in toolset.GROUPS}
                 groups |= new
-                result = f"Loaded: {', '.join(sorted(new)) or 'nothing'}. Now continue the task with these tools."
+                results[i] = f"Loaded: {', '.join(sorted(new)) or 'nothing'}. Now continue the task with these tools."
             else:
                 used.add(toolset.group_of(c["name"]))
-                result = await _run_tool(c["name"], args, hooks)
-            messages.append({"role": "tool", "tool_call_id": c["id"] or f"call_{step}_{i}", "content": result})
+        todo = [i for i in range(len(calls)) if i not in results]
+        for i, result in zip(todo, await _run_calls([calls[i] for i in todo], hooks)):
+            results[i] = result
+        for i, c in enumerate(calls):
+            messages.append({"role": "tool", "tool_call_id": c["id"] or f"call_{step}_{i}", "content": results[i]})
     else:
         # ran out of steps: ask for a final wrap-up without tools
         text, _ = await ctx.llm.chat(

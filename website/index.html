@@ -4,109 +4,166 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>J.A.R.V.I.S.</title>
-<meta name="description" content="Your personal AI assistant that floats on your screen, talks in Hinglish and controls your computer. Free for Windows and macOS.">
+<meta name="description" content="Your personal voice AI for Windows and macOS. Say “Hey Jarvis”, talk in Hinglish, and it controls your computer: apps, files, browser, screen, email and reminders.">
+<meta name="theme-color" content="#03070d">
+<meta property="og:title" content="J.A.R.V.I.S. — your own JARVIS for Windows & macOS">
+<meta property="og:description" content="A full-screen JARVIS HUD that listens, talks in natural Hinglish and actually controls your computer.">
+<meta property="og:image" content="icon.png">
+<meta property="og:type" content="website">
 <link rel="icon" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://api.github.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600&family=Noto+Sans+Devanagari:wght@400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #03070d; --panel: rgba(12, 28, 44, .55); --line: rgba(80, 220, 255, .18);
+    --bg: #03070d; --panel: rgba(12, 28, 44, .72); --line: rgba(80, 220, 255, .18);
     --text: #e6f6ff; --muted: #8aa6b8; --cyan: #3ee0ff; --blue: #2b7bff; --glow: rgba(62, 224, 255, .45);
   }
   * { box-sizing: border-box; margin: 0; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; scroll-padding-top: 80px; }
   body {
-    background: radial-gradient(1200px 700px at 50% -10%, #0b2236 0%, var(--bg) 60%) fixed, var(--bg);
-    color: var(--text); font: 16px/1.6 Inter, "Noto Sans Devanagari", system-ui, sans-serif; overflow-x: hidden;
+    background: var(--bg); color: var(--text); overflow-x: hidden;
+    font: 16px/1.6 Inter, "Noto Sans Devanagari", system-ui, sans-serif;
   }
-  body::before { /* HUD grid */
-    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .35;
+  /* Fixed layers live on the compositor, so scrolling never repaints them. */
+  body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; }
+  body::before { background: radial-gradient(1200px 700px at 50% -10%, #0b2236 0%, var(--bg) 60%); }
+  body::after { /* HUD grid */
+    opacity: .35;
     background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
     background-size: 56px 56px; mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
   }
   a { color: inherit; }
   .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px; position: relative; }
-  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+
+  nav { position: sticky; top: 0; z-index: 10; background: rgba(3, 7, 13, .78); backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s; }
+  nav.scrolled { border-bottom-color: var(--line); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
   .logo { font-family: Orbitron; font-weight: 900; letter-spacing: .28em; font-size: 15px; color: var(--cyan); text-decoration: none; }
-  nav .links a { color: var(--muted); text-decoration: none; margin-left: 22px; font-size: 14px; }
+  nav .links { display: flex; align-items: center; gap: 22px; }
+  nav .links a { color: var(--muted); text-decoration: none; font-size: 14px; }
   nav .links a:hover { color: var(--text); }
+  nav .links a.nav-dl { color: #021018; background: linear-gradient(135deg, #0fb7e0, #2b6fff); padding: 7px 14px; border-radius: 10px; font-weight: 600; }
 
   .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 50px 0 80px; }
-  .tag { display: inline-block; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--cyan);
+  .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--cyan);
          border: 1px solid var(--line); padding: 6px 12px; border-radius: 99px; background: rgba(62,224,255,.06); }
+  .tag i { width: 7px; height: 7px; border-radius: 50%; background: #3dff9a; box-shadow: 0 0 10px #3dff9a; }
   h1 { font-family: Orbitron; font-size: clamp(38px, 6vw, 68px); line-height: 1.05; margin: 18px 0 18px; letter-spacing: .04em; }
   h1 span { background: linear-gradient(90deg, var(--cyan), var(--blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .lead { color: var(--muted); font-size: 18px; max-width: 540px; }
   .hi { color: var(--text); }
   .cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
   .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px; font-weight: 600;
-         text-decoration: none; border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(10px);
+         text-decoration: none; border: 1px solid var(--line); background: var(--panel);
          transition: transform .15s, box-shadow .2s, border-color .2s; }
   .btn:hover { transform: translateY(-2px); border-color: var(--cyan); box-shadow: 0 0 28px var(--glow); }
   .btn.primary { background: linear-gradient(135deg, #0fb7e0, #2b6fff); border-color: transparent; color: #021018; }
   .btn small { display: block; font-weight: 400; font-size: 12px; opacity: .75; }
   .btn svg { width: 22px; height: 22px; flex: none; }
+  .alt { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 1.6em; }
+  .alt a { color: var(--cyan); }
   .note { margin-top: 14px; font-size: 13px; color: var(--muted); }
 
   .orb-wrap { position: relative; aspect-ratio: 1; max-width: 440px; width: 100%; margin: 0 auto; }
-  canvas#orb { width: 100%; height: 100%; display: block; }
+  canvas#orb { width: 100%; height: 100%; display: block; cursor: pointer; }
   .bubble { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); white-space: nowrap;
-            background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(12px);
+            background: rgba(12, 28, 44, .85); border: 1px solid var(--line);
             padding: 10px 16px; border-radius: 14px; font-size: 14px; min-height: 42px; }
   .bubble b { color: var(--cyan); font-weight: 600; }
+  .orb-state { position: absolute; top: 8%; left: 50%; transform: translateX(-50%); font: 700 11px Orbitron;
+               letter-spacing: .3em; color: var(--cyan); opacity: .8; }
 
   section { padding: 70px 0; }
   h2 { font-family: Orbitron; font-size: clamp(24px, 3.5vw, 34px); letter-spacing: .05em; margin-bottom: 10px; }
   .sub { color: var(--muted); margin-bottom: 34px; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; backdrop-filter: blur(10px); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; transition: border-color .2s; }
+  .card:hover { border-color: rgba(62, 224, 255, .4); }
   .card h3 { font-size: 16px; margin: 10px 0 6px; }
   .card p { color: var(--muted); font-size: 14px; }
   .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(62,224,255,.1); color: var(--cyan); font-size: 19px; }
 
+  /* speed pipeline */
+  .pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 10px 0 30px; position: relative; }
+  .pipe div { text-align: center; padding: 18px 10px; position: relative; }
+  .pipe div::after { content: "→"; position: absolute; right: -8px; top: 26px; color: var(--cyan); opacity: .6; }
+  .pipe div:last-child::after { display: none; }
+  .pipe b { display: block; font: 700 13px Orbitron; letter-spacing: .12em; color: var(--cyan); margin-bottom: 6px; }
+  .pipe span { font-size: 13px; color: var(--muted); }
+  .new { display: inline-block; font: 700 10px Orbitron; letter-spacing: .15em; color: #021018; background: var(--cyan);
+         padding: 2px 7px; border-radius: 6px; margin-left: 6px; vertical-align: 2px; }
+
   .say { display: flex; flex-wrap: wrap; gap: 10px; }
-  .say span { border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; font-size: 14px; background: rgba(62,224,255,.05); }
+  .say button { font: inherit; color: var(--text); cursor: pointer; border: 1px solid var(--line); border-radius: 99px;
+                padding: 8px 14px; font-size: 14px; background: rgba(62,224,255,.05); transition: background .15s, border-color .15s; }
+  .say button:hover, .say button.on { background: rgba(62,224,255,.14); border-color: var(--cyan); }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 14px; }
 
   .steps { counter-reset: s; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .steps .card::before { counter-increment: s; content: "0" counter(s); font-family: Orbitron; color: var(--cyan); font-size: 22px; }
 
+  .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   td, th { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--cyan); font-weight: 600; }
   td:first-child { white-space: nowrap; }
 
+  details { border-bottom: 1px solid var(--line); padding: 14px 0; }
+  summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--cyan); font-size: 20px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { color: var(--muted); font-size: 14px; margin-top: 8px; max-width: 760px; }
+
   footer { padding: 40px 0 60px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 30px; }
   footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+  /* reveal on scroll: only opacity/transform, so it stays on the GPU */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  .no-js .reveal { opacity: 1; transform: none; }
 
   @media (max-width: 860px) {
     .hero { grid-template-columns: 1fr; padding-top: 20px; }
     .orb-wrap { max-width: 320px; order: -1; }
     .grid, .steps { grid-template-columns: 1fr; }
-    nav .links a:not(:last-child) { display: none; }
+    .pipe { grid-template-columns: 1fr 1fr; }
+    .pipe div:nth-child(2)::after { display: none; }
+    nav .links a:not(.nav-dl) { display: none; }
     .bubble { white-space: normal; width: 90%; text-align: center; }
     .btn { width: 100%; }
   }
-  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <nav>
+<body class="no-js">
+<nav id="nav">
+  <div class="wrap">
     <a class="logo" href="#">J.A.R.V.I.S.</a>
     <div class="links">
       <a href="#features">Features</a>
+      <a href="#fast">Speed</a>
       <a href="#safety">Safety</a>
-      <a href="#setup">Setup</a>
-      <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
+      <a class="nav-dl" href="#download">Download</a>
     </div>
-  </nav>
+  </div>
+</nav>
 
+<div class="wrap">
   <header class="hero">
     <div>
-      <span class="tag">Personal AI · Windows &amp; macOS</span>
+      <span class="tag"><i></i>Personal AI · Windows &amp; macOS</span>
       <h1>Your own <span>JARVIS.</span></h1>
-      <p class="lead">A glowing orb on your screen that <span class="hi">listens, talks in natural Hinglish</span>, and actually
+      <p class="lead">A full-screen JARVIS display that <span class="hi">listens, talks in natural Hinglish</span>, and actually
         <span class="hi">controls your computer</span>: apps, files, browser, screen, email, reminders and more.
         Just say <b class="hi">“Hey Jarvis”</b>.</p>
       <div class="cta" id="download">
@@ -116,76 +173,113 @@
         </a>
         <a class="btn" id="dl-mac" href="https://github.com/yogesh968/jarvis-macos/releases/latest">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8s2 .8 3.4.8c1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.6-1-2.6-4.1ZM13.9 5c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.5Z"/></svg>
-          <span>Download for macOS<small>Apple Silicon &amp; Intel</small></span>
+          <span>Download for macOS<small id="mac-meta">Apple Silicon &amp; Intel</small></span>
         </a>
       </div>
+      <p class="alt" id="alt"></p>
       <p class="note">Free and open source. You bring your own Groq key (free tier available) and, optionally, an ElevenLabs key for a more human voice.</p>
     </div>
     <div class="orb-wrap">
-      <canvas id="orb" aria-label="Animated Jarvis orb"></canvas>
-      <div class="bubble" id="bubble"></div>
+      <div class="orb-state" id="orb-state">STANDING BY</div>
+      <canvas id="orb" aria-label="Animated Jarvis orb. Click to hear an example."></canvas>
+      <div class="bubble" id="bubble" aria-live="polite"></div>
     </div>
   </header>
 </div>
 
 <section id="features">
   <div class="wrap">
-    <h2>Does real work</h2>
-    <p class="sub">Jarvis doesn't just chat. It has 88 tools that act on your computer.</p>
+    <h2 class="reveal">Does real work</h2>
+    <p class="sub reveal">Jarvis doesn't just chat. It has 90+ tools that act on your computer.</p>
     <div class="grid">
-      <div class="card"><div class="ico">🎙️</div><h3>Voice, Hinglish first</h3><p>Offline “Hey Jarvis” wake word, Whisper speech-to-text, and a natural ElevenLabs voice that mixes Hindi and English the way you do.</p></div>
-      <div class="card"><div class="ico">🖥️</div><h3>Full device control</h3><p>Apps, windows, volume, brightness, Wi-Fi, Bluetooth, dark mode, power, clipboard, keyboard and mouse.</p></div>
-      <div class="card"><div class="ico">👁️</div><h3>Sees your screen</h3><p>“Screen pe jo error hai woh samjhao.” It reads, explains and clicks things by description.</p></div>
-      <div class="card"><div class="ico">📁</div><h3>Files</h3><p>Search, read PDFs and Word docs, summarize, organize Downloads by type, move, copy, and delete to the Recycle Bin.</p></div>
-      <div class="card"><div class="ico">🌐</div><h3>Web &amp; browser</h3><p>Search, news, weather, read any page, and drive its own browser to click and fill forms. YouTube, Spotify and WhatsApp shortcuts.</p></div>
-      <div class="card"><div class="ico">📧</div><h3>Email &amp; calendar</h3><p>Gmail and Google Calendar: read, reply, schedule. On Mac it also works with Notes, Reminders, Calendar, Music and iMessage.</p></div>
-      <div class="card"><div class="ico">🧠</div><h3>Remembers you</h3><p>Your people, preferences and “usual setup”. It uses what it knows in every conversation.</p></div>
-      <div class="card"><div class="ico">⏰</div><h3>Reminders &amp; routines</h3><p>Timers, repeating reminders, and routines like “good morning” and “work mode”, or your own.</p></div>
-      <div class="card"><div class="ico">✨</div><h3>The orb</h3><p>A floating Three.js orb that pulses, listens, thinks and speaks. Click it for a glass chat panel. It never gets in your way.</p></div>
+      <div class="card reveal"><div class="ico">🎙️</div><h3>Voice, Hinglish first</h3><p>Offline “Hey Jarvis” wake word, Whisper speech-to-text, and a natural ElevenLabs voice that mixes Hindi and English the way you do. Keep talking — no wake word needed for follow-ups.</p></div>
+      <div class="card reveal"><div class="ico">🖥️</div><h3>Full device control</h3><p>Apps, windows, volume, brightness, Wi-Fi, Bluetooth, dark mode, power, clipboard, keyboard and mouse.</p></div>
+      <div class="card reveal"><div class="ico">👁️</div><h3>Sees your screen</h3><p>“Screen pe jo error hai woh samjhao.” It reads, explains and clicks things by description.</p></div>
+      <div class="card reveal"><div class="ico">📁</div><h3>Files</h3><p>Search, read PDFs and Word docs, summarize, organize Downloads by type, move, copy, and delete to the Recycle Bin or Trash.</p></div>
+      <div class="card reveal"><div class="ico">🌐</div><h3>Web &amp; browser</h3><p>Search, news, weather, read any page, and drive its own browser to click and fill forms. YouTube, Spotify and WhatsApp shortcuts.</p></div>
+      <div class="card reveal"><div class="ico">📧</div><h3>Email &amp; calendar</h3><p>Gmail and Google Calendar: read, reply, schedule. On Mac it also works with Notes, Reminders, Calendar, Music and iMessage.</p></div>
+      <div class="card reveal"><div class="ico">🧠</div><h3>Remembers you</h3><p>Your people, preferences and “usual setup”, learned quietly from conversation and used every time.</p></div>
+      <div class="card reveal"><div class="ico">⏰</div><h3>Reminders &amp; routines</h3><p>Timers, repeating reminders, and routines like “good morning” and “work mode”, or your own.</p></div>
+      <div class="card reveal"><div class="ico">✨</div><h3>The HUD</h3><p>A full-screen Iron Man display with live CPU, memory, battery, network, weather and schedule. Minimise it to a floating orb; it warns you about low battery or a dropped connection.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="fast">
+  <div class="wrap">
+    <h2 class="reveal">Built for speed <span class="new">NEW</span></h2>
+    <p class="sub reveal">Every step from your voice to its answer overlaps with the next one.</p>
+    <div class="pipe card reveal">
+      <div><b>HEAR</b><span>Wake word runs on your device. Silence is trimmed before upload.</span></div>
+      <div><b>CONNECT</b><span>Connections to the AI and voice open while you're still talking.</span></div>
+      <div><b>THINK</b><span>Only the tools your sentence needs are sent; independent tools run side by side.</span></div>
+      <div><b>SPEAK</b><span>The first words play while the next sentences are still being voiced.</span></div>
+    </div>
+    <div class="grid">
+      <div class="card reveal"><div class="ico">⚡</div><h3>Instant commands</h3><p>“Chrome kholo”, “volume 30”, “agla gaana”, “time kya hai” run straight away, without waiting for the AI.</p></div>
+      <div class="card reveal"><div class="ico">🔁</div><h3>Never stuck on a limit</h3><p>If one free AI model is busy, Jarvis moves to the next one immediately instead of waiting.</p></div>
+      <div class="card reveal"><div class="ico">🪶</div><h3>Light on your Mac</h3><p>The 3D display slows down when Jarvis is idle, so the fans stay quiet and the battery lasts.</p></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>Just say it</h2>
-    <p class="sub">Talk normally, in Hindi, English or both.</p>
-    <div class="say">
-      <span>“Hey Jarvis, Downloads folder saaf kar do”</span>
-      <span>“Chrome kholo aur YouTube pe Arijit chalao”</span>
-      <span>“Kal subah 7 baje gym ka reminder”</span>
-      <span>“Mera unread email padh ke sunao”</span>
-      <span>“Volume 30 aur dark mode on”</span>
-      <span>“Good morning”</span>
-      <span>“What's this error on my screen?”</span>
-      <span>“Work mode on karo”</span>
-      <span>“Priya ko WhatsApp karo ki main late hoon”</span>
+    <h2 class="reveal">Just say it</h2>
+    <p class="sub reveal">Talk normally, in Hindi, English or both. Tap one to hear what Jarvis would do.</p>
+    <div class="say reveal" id="say">
+      <button data-r="हो गया boss, 142 files 6 folders में sort कर दीं।">“Hey Jarvis, Downloads folder saaf kar do”</button>
+      <button data-r="Chrome खोल दिया, Arijit के गाने चल रहे हैं।">“Chrome kholo aur YouTube pe Arijit chalao”</button>
+      <button data-r="ठीक है, कल सुबह 7 बजे gym का reminder लगा दिया।">“Kal subah 7 baje gym ka reminder”</button>
+      <button data-r="3 unread mails हैं। पहला HR से है, Friday की meeting के बारे में।">“Mera unread email padh ke sunao”</button>
+      <button data-r="Volume 30 और dark mode on.">“Volume 30 aur dark mode on”</button>
+      <button data-r="Good morning, sir. 24 degrees outside and two meetings today.">“Good morning”</button>
+      <button data-r="That's a missing import, sir. Line 12 needs “import os”.">“What's this error on my screen?”</button>
+      <button data-r="Work mode on: Slack और VS Code खुल गए, notifications बंद।">“Work mode on karo”</button>
+      <button data-r="Priya को WhatsApp भेजना है: “main late hoon”. भेज दूँ?">“Priya ko WhatsApp karo ki main late hoon”</button>
     </div>
+    <p class="hint reveal">Messages, deletes and payments always wait for your “haan”.</p>
   </div>
 </section>
 
 <section id="safety">
   <div class="wrap">
-    <h2>Powerful, but safe</h2>
-    <p class="sub">Every action goes through a safety layer, and you stay in control.</p>
-    <table>
-      <tr><th>Level</th><th>Examples</th><th>What happens</th></tr>
-      <tr><td>🟢 Auto</td><td>Open an app, read a file, search, change volume</td><td>Runs instantly</td></tr>
-      <tr><td>🟡 Confirm</td><td>Delete, send email, run a command, shut down, “Pay” / “Send” buttons</td><td>Jarvis asks, and you answer “haan” or “nahi” by voice or click</td></tr>
-      <tr><td>🔴 Blocked</td><td>System folders, disk formatting, registry deletes, dangerous commands</td><td>Always refused</td></tr>
-    </table>
-    <p class="note" style="margin-top:18px">Plus a kill-switch hotkey, a dry-run mode, folders you choose, deletes that go to the Recycle Bin or Trash, and a full activity log. The wake word runs on your device.</p>
+    <h2 class="reveal">Powerful, but safe</h2>
+    <p class="sub reveal">Every action goes through a safety layer, and you stay in control.</p>
+    <div class="table-scroll reveal">
+      <table>
+        <tr><th>Level</th><th>Examples</th><th>What happens</th></tr>
+        <tr><td>🟢 Auto</td><td>Open an app, read a file, search, change volume</td><td>Runs instantly</td></tr>
+        <tr><td>🟡 Confirm</td><td>Delete, send email, run a command, shut down, “Pay” / “Send” buttons</td><td>Jarvis asks, and you answer “haan” or “nahi” by voice</td></tr>
+        <tr><td>🔴 Blocked</td><td>System folders, disk formatting, registry deletes, dangerous commands</td><td>Always refused</td></tr>
+      </table>
+    </div>
+    <p class="note reveal" style="margin-top:18px">Plus a kill-switch hotkey, a dry-run mode, folders you choose, deletes that go to the Recycle Bin or Trash, and a full activity log. The wake word runs on your device.</p>
   </div>
 </section>
 
 <section id="setup">
   <div class="wrap">
-    <h2>Up in 3 minutes</h2>
-    <p class="sub">&nbsp;</p>
+    <h2 class="reveal">Up in 3 minutes</h2>
+    <p class="sub reveal">No account, no subscription.</p>
     <div class="steps">
-      <div class="card"><h3>Install</h3><p>Download for your OS and run the installer. On Windows, click “More info → Run anyway” if SmartScreen asks. On Mac, allow Microphone, Accessibility and Screen Recording when prompted.</p></div>
-      <div class="card"><h3>Add your keys</h3><p>Click the orb, open Settings, and paste a free <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key</a>. Optionally add an <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a> key and a Hindi voice.</p></div>
-      <div class="card"><h3>Say “Hey Jarvis”</h3><p>That's it. Use <b>Ctrl+Alt+J</b> (<b>⌘⌥J</b> on Mac) any time to stop everything instantly.</p></div>
+      <div class="card reveal"><h3>Install</h3><p>Download for your OS and run the installer. On Windows, click “More info → Run anyway” if SmartScreen asks. On Mac, allow Microphone, Accessibility and Screen Recording when prompted.</p></div>
+      <div class="card reveal"><h3>Add your keys</h3><p>Open Settings and paste a free <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key</a>. Optionally add an <a href="https://elevenlabs.io" target="_blank" rel="noopener">ElevenLabs</a> key and a Hindi voice.</p></div>
+      <div class="card reveal"><h3>Say “Hey Jarvis”</h3><p>That's it. Use <b>Ctrl+Alt+J</b> (<b>⌘⌥J</b> on Mac) any time to stop everything instantly.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2 class="reveal">Questions</h2>
+    <p class="sub reveal">&nbsp;</p>
+    <div class="reveal">
+      <details><summary>Is it really free?</summary><p>Yes. Jarvis is free and open source. The AI runs on Groq's free tier with your own key; ElevenLabs is optional, and without it Jarvis uses free Microsoft voices.</p></details>
+      <details><summary>Is it always listening to me?</summary><p>Only for the wake word, and that runs on your computer. Audio is sent for transcription only after “Hey Jarvis” or when you press the talk shortcut. You can mute the mic any time from the menu bar or tray.</p></details>
+      <details><summary>Which Mac do I need?</summary><p>macOS 12 or newer, on Apple Silicon or Intel. Grant Microphone, Accessibility and Screen Recording so it can hear you, control apps and see the screen when you ask.</p></details>
+      <details><summary>It feels slow. What can I do?</summary><p>Add an ElevenLabs key and pick the Flash voice model, keep “Instant commands” on in Settings, and use short commands for everyday things. On the free Groq tier, very long requests can hit the per-minute limit; Jarvis switches models automatically when that happens.</p></details>
+      <details><summary>Can it do something dangerous by mistake?</summary><p>Anything that deletes, sends, pays or runs a command waits for your “haan”. System folders and destructive commands are blocked outright, and there's a dry-run mode to test routines safely.</p></details>
     </div>
   </div>
 </section>
@@ -198,76 +292,149 @@
 </footer>
 
 <script>
-// ---- animated orb (2D canvas, no libraries) ----
-(() => {
+document.body.classList.remove('no-js');
+
+// ---- animated orb (2D canvas, no libraries). Pauses when off-screen or the tab is hidden. ----
+const orb = (() => {
   const c = document.getElementById('orb'), g = c.getContext('2d');
+  const stateEl = document.getElementById('orb-state');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let W, H, t = 0, speak = 0;
-  const dots = Array.from({ length: 140 }, () => ({ a: Math.random() * 6.283, r: .55 + Math.random() * .5, s: .1 + Math.random() * .5, z: Math.random() }));
-  function size() { const d = devicePixelRatio || 1; W = c.clientWidth; H = c.clientHeight; c.width = W * d; c.height = H * d; g.setTransform(d, 0, 0, d, 0, 0); }
-  addEventListener('resize', size); size();
-  function frame() {
-    t += 0.016; const cx = W / 2, cy = H / 2, R = Math.min(W, H) * .26;
+  let W, H, R, cx, cy, t = 0, speak = 0, listen = 0, raf = 0, onScreen = true, last = 0;
+  let halo, core, glow;
+  const dots = Array.from({ length: 120 }, () => ({ a: Math.random() * 6.283, r: Math.random(), s: .1 + Math.random() * .5, z: Math.random() }));
+  const dotColor = dots.map(d => `rgba(120,235,255,${(.25 + d.z * .6).toFixed(2)})`);
+
+  function size() {
+    const d = Math.min(devicePixelRatio || 1, 2);
+    W = c.clientWidth; H = c.clientHeight; c.width = W * d; c.height = H * d; g.setTransform(d, 0, 0, d, 0, 0);
+    cx = W / 2; cy = H / 2; R = Math.min(W, H) * .26;
+    // gradients are built once per resize, not every frame
+    halo = g.createRadialGradient(cx, cy, R * .2, cx, cy, R * 2.1);
+    halo.addColorStop(0, 'rgba(62,224,255,.35)'); halo.addColorStop(.45, 'rgba(43,123,255,.12)'); halo.addColorStop(1, 'rgba(0,0,0,0)');
+    core = g.createRadialGradient(cx - R * .3, cy - R * .35, R * .1, cx, cy, R * 1.1);
+    core.addColorStop(0, '#e9fdff'); core.addColorStop(.25, '#5ff0ff'); core.addColorStop(.7, '#1677ff'); core.addColorStop(1, '#061a3a');
+    glow = g.createRadialGradient(cx, cy, R * .9, cx, cy, R * 1.5);
+    glow.addColorStop(0, 'rgba(62,224,255,.55)'); glow.addColorStop(1, 'rgba(62,224,255,0)');
+    if (!raf) draw(); // keep a still frame after resizing while paused
+  }
+
+  function draw() {
     const amp = speak * (0.5 + 0.5 * Math.sin(t * 18) * Math.sin(t * 7.3));
     g.clearRect(0, 0, W, H);
-    const halo = g.createRadialGradient(cx, cy, R * .2, cx, cy, R * 2.1);
-    halo.addColorStop(0, 'rgba(62,224,255,.35)'); halo.addColorStop(.45, 'rgba(43,123,255,.12)'); halo.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = halo; g.fillRect(0, 0, W, H);
+    // soft glow instead of shadowBlur (which is very slow on canvas)
+    g.globalAlpha = .6 + amp * .4 + listen * .3; g.fillStyle = glow;
+    g.beginPath(); g.arc(cx, cy, R * 1.5, 0, 6.283); g.fill(); g.globalAlpha = 1;
     // wobbling core
     g.beginPath();
-    for (let i = 0; i <= 120; i++) {
-      const a = i / 120 * 6.283;
-      const r = R * (1 + .045 * Math.sin(a * 3 + t * 1.7) + .03 * Math.sin(a * 5 - t * 2.3) + amp * .12 * Math.sin(a * 8 + t * 9));
+    for (let i = 0; i <= 96; i++) {
+      const a = i / 96 * 6.283;
+      const r = R * (1 + .045 * Math.sin(a * 3 + t * 1.7) + .03 * Math.sin(a * 5 - t * 2.3) + amp * .12 * Math.sin(a * 8 + t * 9) + listen * .03 * Math.sin(a * 6 + t * 5));
       g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
     }
-    const core = g.createRadialGradient(cx - R * .3, cy - R * .35, R * .1, cx, cy, R * 1.1);
-    core.addColorStop(0, '#e9fdff'); core.addColorStop(.25, '#5ff0ff'); core.addColorStop(.7, '#1677ff'); core.addColorStop(1, '#061a3a');
-    g.fillStyle = core; g.shadowColor = '#3ee0ff'; g.shadowBlur = 40 + amp * 40; g.fill(); g.shadowBlur = 0;
+    g.fillStyle = core; g.fill();
     // rings
     g.lineWidth = 1.5;
     [[1.35, .9, 1], [1.6, -.6, .6], [1.85, .35, .35]].forEach(([k, sp, al], i) => {
       g.strokeStyle = `rgba(62,224,255,${al * .8})`; g.beginPath();
-      const start = t * sp + i, len = 1.2 + i * .6;
+      const start = t * sp * (1 + listen * 2) + i, len = 1.2 + i * .6;
       g.arc(cx, cy, R * k, start, start + len); g.stroke();
       g.beginPath(); g.arc(cx, cy, R * k, start + Math.PI, start + Math.PI + len * .6); g.stroke();
     });
     // particles
-    dots.forEach(d => {
+    for (let i = 0; i < dots.length; i++) {
+      const d = dots[i];
       d.a += d.s * .01 * (1 + amp * 3);
-      const r = R * (1.2 + d.r * .9), x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r * .92;
-      g.fillStyle = `rgba(120,235,255,${.25 + d.z * .6})`; g.fillRect(x, y, 1.6, 1.6);
-    });
-    if (!reduce) requestAnimationFrame(frame);
+      const r = R * (1.2 + d.r * .9 + amp * .1), x = cx + Math.cos(d.a) * r, y = cy + Math.sin(d.a) * r * .92;
+      g.fillStyle = dotColor[i]; g.fillRect(x, y, 1.6, 1.6);
+    }
   }
-  frame();
-  // ---- talking bubble demo ----
-  const lines = [
-    ['You', 'Hey Jarvis, Downloads saaf kar do'],
-    ['Jarvis', 'हो गया boss, 142 files 6 folders में sort कर दीं।'],
-    ['You', 'Aaj ka weather?'],
-    ['Jarvis', '31 degree है, शाम को हल्की बारिश हो सकती है।'],
-    ['You', 'Play some Arijit'],
-    ['Jarvis', 'चलो, YouTube पर लगा दिया 🎧'],
-  ];
-  const b = document.getElementById('bubble'); let i = 0;
-  function next() {
-    const [who, text] = lines[i++ % lines.length];
-    b.innerHTML = `<b>${who}:</b> ` + text.replace(/</g, '&lt;');
-    speak = who === 'Jarvis' ? 1 : 0;
-    setTimeout(() => { speak = 0; }, 2200);
+
+  function frame(now) {
+    raf = 0;
+    if (!onScreen || document.hidden) return;
+    t += Math.min(.05, (now - (last || now)) / 1000); last = now;
+    draw();
+    if (!reduce) raf = requestAnimationFrame(frame);
   }
-  next(); setInterval(next, 3200);
+  function start() { if (!raf && !reduce) { last = 0; raf = requestAnimationFrame(frame); } }
+
+  addEventListener('resize', size); size();
+  new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; if (onScreen) start(); }).observe(c);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+  start();
+
+  return {
+    set(state) {
+      speak = state === 'speaking' ? 1 : 0; listen = state === 'listening' ? 1 : 0;
+      stateEl.textContent = { speaking: 'SPEAKING', listening: 'LISTENING', thinking: 'PROCESSING' }[state] || 'STANDING BY';
+      if (reduce) draw();
+    },
+  };
 })();
 
-// ---- show latest version + direct .exe link if the release exists ----
-fetch('https://api.github.com/repos/yogesh968/jarvis-windows/releases/latest')
-  .then(r => r.ok ? r.json() : null)
-  .then(rel => {
+// ---- talking bubble demo; tapping a phrase plays it ----
+(() => {
+  const b = document.getElementById('bubble');
+  const chips = [...document.querySelectorAll('#say button')];
+  const demo = chips.slice(0, 6).map(el => [el.textContent.replace(/[“”]/g, '').replace(/^Hey Jarvis, /, ''), el.dataset.r]);
+  let timers = [], i = 0, auto = 0;
+  const show = (who, text) => { b.innerHTML = `<b>${who}:</b> ` + text.replace(/</g, '&lt;'); };
+  function play(you, reply, done) {
+    timers.forEach(clearTimeout); timers = [];
+    show('You', you); orb.set('listening');
+    timers.push(setTimeout(() => orb.set('thinking'), 1100));
+    timers.push(setTimeout(() => { show('Jarvis', reply); orb.set('speaking'); }, 1500));
+    timers.push(setTimeout(() => { orb.set('idle'); done && done(); }, 3700));
+  }
+  function loop() { const [you, reply] = demo[i++ % demo.length]; play(you, reply, () => { auto = setTimeout(loop, 700); }); }
+  loop();
+  chips.forEach(el => el.addEventListener('click', () => {
+    clearTimeout(auto);
+    chips.forEach(x => x.classList.toggle('on', x === el));
+    play(el.textContent.replace(/[“”]/g, ''), el.dataset.r, () => { el.classList.remove('on'); auto = setTimeout(loop, 4000); });
+    document.querySelector('.orb-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
+  document.getElementById('orb').addEventListener('click', () => { clearTimeout(auto); loop(); });
+})();
+
+// ---- reveal on scroll + nav border ----
+(() => {
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }),
+    { rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  const nav = document.getElementById('nav');
+  addEventListener('scroll', () => nav.classList.toggle('scrolled', scrollY > 10), { passive: true });
+})();
+
+// ---- downloads: put the visitor's OS first, link straight to the installer when a release exists ----
+(() => {
+  const ua = navigator.userAgent, isMac = /Mac/i.test(navigator.platform || ua) && !/iPhone|iPad/i.test(ua);
+  const win = document.getElementById('dl-win'), mac = document.getElementById('dl-mac'), alt = document.getElementById('alt');
+  if (isMac) { mac.parentNode.insertBefore(mac, win); mac.classList.add('primary'); win.classList.remove('primary'); }
+  const mb = a => Math.round(a.size / 1048576) + ' MB';
+  const latest = repo => fetch(`https://api.github.com/repos/yogesh968/${repo}/releases/latest`).then(r => r.ok ? r.json() : null).catch(() => null);
+
+  latest('jarvis-windows').then(rel => {
     if (!rel) return;
     const exe = (rel.assets || []).find(a => /\.exe$/i.test(a.name));
-    if (exe) document.getElementById('dl-win').href = exe.browser_download_url;
-    document.getElementById('win-meta').textContent = `${rel.tag_name} · Windows 10 / 11 · ${exe ? Math.round(exe.size / 1048576) + ' MB' : '64-bit'}`;
-  }).catch(() => {});
+    if (exe) win.href = exe.browser_download_url;
+    document.getElementById('win-meta').textContent = `${rel.tag_name} · Windows 10 / 11 · ${exe ? mb(exe) : '64-bit'}`;
+  });
+  latest('jarvis-macos').then(async rel => {
+    if (!rel) return;
+    const dmgs = (rel.assets || []).filter(a => /\.dmg$/i.test(a.name));
+    const arm = dmgs.find(a => /arm64/i.test(a.name)), intel = dmgs.find(a => /x64|intel/i.test(a.name));
+    // Chrome/Edge can tell Apple Silicon from Intel; elsewhere assume Apple Silicon (every Mac since 2020)
+    let isIntel = false;
+    try { isIntel = (await navigator.userAgentData?.getHighEntropyValues(['architecture']))?.architecture === 'x86'; } catch {}
+    const pick = (isIntel ? intel : arm) || arm || intel || dmgs[0];
+    const other = pick === arm ? intel : arm;
+    if (pick) mac.href = pick.browser_download_url;
+    document.getElementById('mac-meta').textContent = `${rel.tag_name} · ${pick === intel ? 'Intel' : 'Apple Silicon'}${pick ? ' · ' + mb(pick) : ''}`;
+    if (isMac && other) alt.innerHTML = `Have ${other === intel ? 'an Intel' : 'an Apple Silicon'} Mac? <a href="${other.browser_download_url}">Download that version</a>.`;
+  });
+})();
 </script>
 </body>
 </html>

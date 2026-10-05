@@ -37,6 +37,7 @@ DEFAULTS: dict[str, Any] = {
     "proactive_alerts": True,      # speak up about low battery, CPU overload, internet down…
     "auto_memory": True,           # quietly learn lasting facts about the user from conversations
     "sound_effects": True,         # HUD chimes when listening starts/ends
+    "instant_commands": True,      # common one-liners (open/close app, volume, media, time…) skip the LLM
     "home_city": "",               # weather on the HUD; empty = detect from IP
     "settings_rev": 2,             # bumped when a default changes and old stored values should follow
 }

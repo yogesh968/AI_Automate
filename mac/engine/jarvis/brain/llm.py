@@ -72,17 +72,32 @@ class LLM:
         self._client = None
         self._key = ""
         self._cooldown: dict[str, float] = {}  # model -> monotonic time it may be used again
+        self._warmed = 0.0
 
     def client(self):
         key = get_key("groq")
         if not key:
             raise MissingKey("Groq API key is not set. Open Settings and paste it.")
         if key != self._key or self._client is None:
+            import httpx
             from groq import AsyncGroq
 
-            self._client = AsyncGroq(api_key=key, max_retries=0, timeout=30)
+            # Long keep-alive: reusing one TLS connection saves ~0.2-0.5 s on every request.
+            http = httpx.AsyncClient(timeout=30, limits=httpx.Limits(max_keepalive_connections=8,
+                                                                     keepalive_expiry=300))
+            self._client = AsyncGroq(api_key=key, max_retries=0, timeout=30, http_client=http)
             self._key = key
         return self._client
+
+    async def warm(self) -> None:
+        """Open the connection to Groq ahead of time (called when the user starts talking)."""
+        if time.monotonic() - self._warmed < 45:
+            return
+        self._warmed = time.monotonic()
+        try:
+            await self.client().models.list()
+        except Exception as exc:  # noqa: BLE001 — just a warm-up
+            log.debug("groq warm-up failed: %s", exc)
 
     def _extra(self, model: str) -> dict[str, Any]:
         if model.startswith("openai/gpt-oss"):

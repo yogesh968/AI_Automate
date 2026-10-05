@@ -30,6 +30,7 @@ const DEFAULTS = {
   proactive_alerts: true,
   auto_memory: true,
   sound_effects: true,
+  instant_commands: true,
   home_city: '',
 };
 
@@ -390,6 +391,12 @@ export default function SettingsTab({ settings, keys, send, toast, micMuted, onT
           hint="Soft chimes when Jarvis starts and stops listening."
           checked={s.sound_effects}
           onChange={(v) => update({ sound_effects: v })}
+        />
+        <Toggle
+          label="Instant commands"
+          hint="“Chrome kholo”, “volume 30”, “pause”, “time kya hai” run at once without asking the AI — much faster."
+          checked={s.instant_commands}
+          onChange={(v) => update({ instant_commands: v })}
         />
       </Section>
 

@@ -110,6 +110,7 @@ Every message is one JSON object with a `type` field.
   "proactive_alerts": true,
   "auto_memory": true,
   "sound_effects": true,
+  "instant_commands": true,
   "home_city": "",
   "settings_rev": 2
 }
@@ -120,6 +121,8 @@ Every message is one JSON object with a `type` field.
 `follow_up`: after a spoken reply to a *voice* command, the engine listens again for ~5 s without the wake word (purpose `followup`). Typed messages never start a follow-up.
 
 `barge_in`: while audio plays, the wake word still runs with a stricter threshold (`wake_word_threshold + 0.25`); a hit cancels the turn, sends `interrupt` and starts listening.
+
+`instant_commands`: short, unambiguous one-liners — open/close an app, volume up/down/set/mute, play/pause/next/previous, time, battery, lock, show/hide HUD (English or Hinglish) — run their tool directly and get a canned persona reply, skipping the LLM. If the tool fails (app not found, not running…) the turn falls through to the LLM.
 
 `proactive_alerts`: battery 20/10/5 % (once each while discharging), battery full on charger, CPU ≥ 92 % for 90 s, RAM ≥ 93 % for 30 s, system drive ≥ 95 % (every 6 h at most), internet lost (2 failed checks) / back. Alerts are spoken only when Jarvis is idle; otherwise just a toast.
 

@@ -37,66 +37,88 @@ NO = re.compile(r"\b(nahi|nahin|nai|no|nope|mat|ruko|ruk|cancel|stop|don't|dont|
 
 
 class Speaker:
-    """Turns streamed reply text into ordered audio messages for one reply."""
+    """Turns streamed reply text into ordered audio messages for one reply.
+
+    Every sentence starts synthesizing the moment it is complete (a few at a time), so sentence 2 is
+    ready by the time sentence 1 has played; the audio is still sent strictly in order.
+    """
+
+    PARALLEL = 3
 
     def __init__(self, core: "Core", reply_id: str) -> None:
         self.core = core
         self.id = reply_id
         self.splitter = SentenceSplitter()
-        self.queue: asyncio.Queue[str | None] = asyncio.Queue()
+        self.queue: asyncio.Queue[tuple[str, asyncio.Task] | None] = asyncio.Queue()
+        self.slots = asyncio.Semaphore(self.PARALLEL)
         self.seq = 0
         self.prev = ""
+        self.pending = 0
         self.enabled = bool(core.settings["speak_replies"])
         self.worker = asyncio.create_task(self._work())
+
+    def _push(self, text: str) -> None:
+        prev, self.prev = self.prev, text
+        self.pending += 1
+        self.queue.put_nowait((text, asyncio.create_task(self._synth(text, prev))))
+
+    async def _synth(self, text: str, prev: str):
+        async with self.slots:
+            return await self.core.tts.synth(text, prev)
 
     def feed(self, text: str) -> None:
         if self.enabled:
             for piece in self.splitter.feed(text):
-                self.queue.put_nowait(piece)
+                self._push(piece)
 
     def say(self, text: str) -> None:
         """Speak a complete sentence right away (flushes what's buffered first)."""
         if self.enabled:
             for piece in self.splitter.flush() + [text]:
-                self.queue.put_nowait(piece)
+                self._push(piece)
 
     async def drain(self) -> None:
         """Wait until everything queued so far has been synthesized and sent."""
-        while self.enabled and (not self.queue.empty() or self._busy):
+        while self.enabled and self.pending:
             await asyncio.sleep(0.05)
-
-    _busy = False
 
     async def finish(self) -> None:
         if self.enabled:
             for piece in self.splitter.flush():
-                self.queue.put_nowait(piece)
+                self._push(piece)
         self.queue.put_nowait(None)
         await self.worker
         await self.core.broadcast({"type": "audio_end", "id": self.id})
 
     def cancel(self) -> None:
         self.worker.cancel()
+        while not self.queue.empty():
+            item = self.queue.get_nowait()
+            if item:
+                item[1].cancel()
 
     async def _work(self) -> None:
         while True:
             item = await self.queue.get()
             if item is None:
                 return
-            self._busy = True
+            text, task = item
             try:
-                audio, _provider = await self.core.tts.synth(item, self.prev)
+                try:
+                    audio, _provider = await task
+                except Exception:  # noqa: BLE001 — one bad sentence shouldn't silence the rest
+                    log.exception("speech synthesis failed")
+                    audio = None
                 if audio:
                     await self.core.broadcast({
                         "type": "audio", "id": self.id, "seq": self.seq, "format": "mp3",
-                        "data": base64.b64encode(audio).decode(), "text": item,
+                        "data": base64.b64encode(audio).decode(), "text": text,
                     })
                     self.seq += 1
                     self.core.expect_audio = True
                     await self.core.set_state("speaking")
-                self.prev = item
             finally:
-                self._busy = False
+                self.pending -= 1
 
 
 class Core:
@@ -446,6 +468,11 @@ class Core:
         self.mic_mode = "record"
         self.wake.reset()
         await self.set_state("listening")
+        # While the user talks, open the connections the reply will need (STT, LLM, voice).
+        self._spawn(self.warm_up())
+
+    async def warm_up(self) -> None:
+        await asyncio.gather(self.llm.warm(), self.tts.warm(), return_exceptions=True)
 
     async def _finish_recording(self, status: str) -> None:
         rec, purpose = self.recorder, self.listen_purpose
@@ -670,7 +697,18 @@ class Core:
 
     # ------------------------------------------------------------------ lifecycle
 
+    async def _prewarm(self) -> None:
+        """Startup: build the installed-apps index and open API connections before the first command."""
+        try:
+            from .tools.apps import _installed_apps
+
+            await asyncio.to_thread(_installed_apps)
+        except Exception:  # noqa: BLE001
+            log.debug("app index warm-up failed", exc_info=True)
+        await self.warm_up()
+
     async def run_background(self) -> None:
+        self._spawn(self._prewarm())
         await asyncio.gather(self.mic_loop(), self.reminder_loop(), self.telemetry_loop())
 
 

@@ -115,9 +115,8 @@ void main(){
 }
 `;
 
-function makeArc(inner, outer, start, length, opacity) {
-  const geo = new THREE.RingGeometry(inner, outer, 96, 1, start, length);
-  const mat = new THREE.MeshBasicMaterial({
+function arcMaterial(opacity) {
+  return new THREE.MeshBasicMaterial({
     color: 0x7df9ff,
     transparent: true,
     opacity,
@@ -125,8 +124,15 @@ function makeArc(inner, outer, start, length, opacity) {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  return new THREE.Mesh(geo, mat);
 }
+
+function makeArc(inner, outer, start, length, opacity, material) {
+  const geo = new THREE.RingGeometry(inner, outer, length > 0.5 ? 64 : 2, 1, start, length);
+  return new THREE.Mesh(geo, material || arcMaterial(opacity));
+}
+
+// Calm states don't need 60 fps; this keeps the GPU (and fans) quiet while Jarvis waits.
+const CALM_FPS = { idle: 30, sleeping: 20, offline: 20 };
 
 export default function Orb({ state = 'idle', getLevel }) {
   const mountRef = useRef(null);
@@ -141,13 +147,21 @@ export default function Orb({ state = 'idle', getLevel }) {
 
     let renderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
+      const dpr = window.devicePixelRatio || 1;
+      renderer = new THREE.WebGLRenderer({
+        antialias: dpr < 2, // Retina is sharp enough without MSAA
+        alpha: true,
+        premultipliedAlpha: false,
+        powerPreference: 'high-performance',
+      });
     } catch (err) {
       console.warn('[orb] WebGL unavailable, using CSS fallback', err);
       mount.classList.add('orb-fallback');
       return undefined;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // The full-screen HUD orb is big: 1.5x is visually identical to 2x and ~45% fewer pixels to shade.
+    const pixelRatio = () => Math.min(window.devicePixelRatio || 1, (mount.clientWidth || 0) > 300 ? 1.5 : 2);
+    renderer.setPixelRatio(pixelRatio());
     renderer.setClearColor(0x000000, 0);
     const { w, h } = size();
     renderer.setSize(w, h);
@@ -187,7 +201,7 @@ export default function Orb({ state = 'idle', getLevel }) {
       },
       transparent: true,
     });
-    const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 48), sphereMat);
+    const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 32), sphereMat);
     group.add(sphere);
 
     // HUD arcs
@@ -205,14 +219,14 @@ export default function Orb({ state = 'idle', getLevel }) {
 
     // Tick marks on the outer ring
     const ticks = new THREE.Group();
+    const tickMat = arcMaterial(0.4); // one shared material: one colour update per frame instead of 48
     for (let i = 0; i < 48; i++) {
-      const t = makeArc(1.58, i % 4 === 0 ? 1.66 : 1.62, (i / 48) * Math.PI * 2, 0.018, 0.4);
-      ticks.add(t);
+      ticks.add(makeArc(1.58, i % 4 === 0 ? 1.66 : 1.62, (i / 48) * Math.PI * 2, 0.018, 0.4, tickMat));
     }
     scene.add(ticks);
 
     // Orbiting particles
-    const COUNT = 220;
+    const COUNT = 160;
     const positions = new Float32Array(COUNT * 3);
     const seeds = new Float32Array(COUNT * 3);
     for (let i = 0; i < COUNT; i++) {
@@ -256,6 +270,8 @@ export default function Orb({ state = 'idle', getLevel }) {
     const frame = (now) => {
       raf = requestAnimationFrame(frame);
       if (!visible) return;
+      const fps = CALM_FPS[stateRef.current];
+      if (fps && now - last < 1000 / fps - 2) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const s = STATES[stateRef.current] || STATES.idle;
@@ -301,7 +317,7 @@ export default function Orb({ state = 'idle', getLevel }) {
       });
       ringGroup.scale.setScalar(0.96 + cur.scale * 0.04 + L * 0.06);
       ticks.rotation.z = -ringAngle * 0.15;
-      ticks.children.forEach((m) => m.material.color.copy(cur.a).lerp(cur.b, 0.5));
+      tickMat.color.copy(cur.a).lerp(cur.b, 0.5);
 
       for (let i = 0; i < COUNT; i++) {
         const ang = seeds[i * 3] + t * (0.4 + (i % 7) * 0.05);
@@ -320,6 +336,7 @@ export default function Orb({ state = 'idle', getLevel }) {
 
     const ro = new ResizeObserver(() => {
       const { w: nw, h: nh } = size();
+      renderer.setPixelRatio(pixelRatio());
       renderer.setSize(nw, nh);
       camera.aspect = nw / nh;
       camera.updateProjectionMatrix();
@@ -334,6 +351,7 @@ export default function Orb({ state = 'idle', getLevel }) {
         obj.geometry?.dispose?.();
         obj.material?.dispose?.();
       });
+      tickMat.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
